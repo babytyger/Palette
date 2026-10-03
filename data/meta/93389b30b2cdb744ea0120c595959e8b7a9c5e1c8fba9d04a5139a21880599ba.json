@@ -1,0 +1,52 @@
+{
+  "cacheKey": "93389b30b2cdb744ea0120c595959e8b7a9c5e1c8fba9d04a5139a21880599ba",
+  "imageUrl": "/images/93389b30b2cdb744ea0120c595959e8b7a9c5e1c8fba9d04a5139a21880599ba.png",
+  "mime": "image/png",
+  "createdAt": "2026-10-01T14:20:27.096Z",
+  "templateId": "circular_editorial_montage",
+  "prompt": "ATTACHED IMAGES\n3 images are attached to this request, in this order. They are referred to below by number.\nImage 1 (Subject image 1) is the main subject. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nImage 2 (Subject image 2) is the main subject. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nImage 3 (Subject image 3) is the main subject. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nCreate a fixed 1:1 square conceptual editorial photomontage using the attached subject image 1 (image 1), the attached subject image 2 (image 2), and the attached subject image 3 (image 3)...\n\nThe final result must read as a layered geometric collage...\n\nADDITIONAL ELEMENTS\nAdd the following to the composition. Keep the layout and hierarchy described above.\nApply an authentic overprint texture to the affected element. Simulate layered printed inks overlapping on paper, creating subtle color mixing, ink density variation, slight registration shifts and areas where underlying colors visibly interact. Preserve the original shape, details, colors and information while giving the element a physical layered-print appearance.\n\nAdd scattered line cuts throughout the composition. Place some lines in front of the main subject and others across the background image, creating varied depth and visual interruption. Randomize the position, direction, length and spacing of the lines on every generation while keeping the composition balanced.\n\nADDITIONAL RULES\n- {\"condition\":\"always\",\"instruction\":\"Scatter line cuts across both foreground and background areas.\"}\n- {\"condition\":\"always\",\"instruction\":\"Randomize line placement, direction, length and spacing on every generation.\"}\n- {\"condition\":\"always\",\"instruction\":\"Allow some lines to overlap the main subject while others remain behind it.\"}\n- {\"condition\":\"always\",\"instruction\":\"Keep the lines visually distinct and avoid forming a regular grid or repetitive pattern.\"}\n- {\"condition\":\"always\",\"instruction\":\"Use the selected color for all line cuts.\"}\n- Use the subject from the attached image exactly as photographed. Do not distort, stretch, warp, redraw, retouch or replace it, and do not change its identity, features or proportions.",
+  "parts": [
+    {
+      "paramId": "subjectImage1",
+      "label": "Subject image 1",
+      "type": "image",
+      "hasFile": true,
+      "index": 1,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 1 (image 1)"
+    },
+    {
+      "paramId": "subjectImage2",
+      "label": "Subject image 2",
+      "type": "image",
+      "hasFile": true,
+      "index": 2,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 2 (image 2)"
+    },
+    {
+      "paramId": "subjectImage3",
+      "label": "Subject image 3",
+      "type": "image",
+      "hasFile": true,
+      "index": 3,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 3 (image 3)"
+    },
+    {
+      "paramId": "sideCircleTint",
+      "label": "Side circle tint",
+      "type": "color",
+      "rawValue": "#7A5A8C",
+      "resolvedPhrase": "#7A5A8C"
+    }
+  ],
+  "components": [
+    "overprint_test",
+    "line_cut_test"
+  ],
+  "warnings": [],
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "mock": false
+}

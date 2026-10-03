@@ -1,0 +1,2871 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palette</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F6F7F8; --surface: #FFFFFF; --surface2: #F3F4F6; --surface3: #E8EAED;
+  --ink: #111827; --muted: #6B7280; --faint: #9CA3AF;
+  --line: #E5E7EB; --line2: #D1D5DB;
+  --accent: #E85D2C; --accent-soft: #FFF1EB; --accent-ink: #FFFFFF;
+  --blue: #0047AB; --blue-soft: #EBF0F9;
+  --green: #16A34A; --green-soft: #F0FDF4;
+  --red: #DC2626; --red-soft: #FFF1F1;
+  --yellow: #CA8A04; --yellow-soft: #FEFCE8;
+  --shadow: 0 1px 2px rgba(17,24,39,.04), 0 8px 24px -16px rgba(17,24,39,.12);
+  --shadow-lg: 0 12px 40px -16px rgba(17,24,39,.18);
+  --sans: "Inter", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --radius: 12px;
+  box-sizing: border-box;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html, body { height: 100%; width: 100%; margin: 0; overflow: hidden; }
+body {
+  background: #eceef1; color: var(--ink); font: 14px/1.5 var(--sans);
+  display: grid; place-items: center;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+a { color: var(--accent); text-decoration: none; }
+
+/* Layout — whole app is a 16:10 stage that fits the window with no page scroll */
+.shell {
+  position: relative;
+  display: grid; grid-template-columns: 232px minmax(0, 1fr);
+  width: min(100vw, calc(100dvh * 16 / 10));
+  height: min(100dvh, calc(100vw * 10 / 16));
+  max-width: 100vw; max-height: 100dvh;
+  overflow: hidden; background: var(--bg);
+  box-shadow: var(--shadow-lg);
+}
+@media (max-width: 1200px) { .shell { grid-template-columns: 216px minmax(0, 1fr); } }
+@media (max-width: 900px) { .shell { grid-template-columns: 200px minmax(0, 1fr); } }
+.shell.studio-focus .left-nav { display: none; }
+.shell.studio-focus .top-bar { padding: 8px 20px; }
+
+/* Left nav */
+.left-nav { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; min-height: 0; min-width: 0; }
+.nav-head { padding: 22px 18px 10px; }
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 15px; line-height: 1; }
+.logo-word { font-size: 18px; font-weight: 700; letter-spacing: -.03em; }
+.logo-dot { color: var(--accent); }
+.nav-scroll { flex: 1; overflow-y: auto; padding: 8px 12px 16px; }
+.nav-section { font-size: 11px; font-weight: 600; color: var(--faint); letter-spacing: .08em; text-transform: uppercase; padding: 16px 10px 8px; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-radius: 10px; padding: 9px 12px; cursor: pointer; color: var(--ink); font-size: 14px; font-weight: 500; }
+.nav-item:hover { background: var(--surface2); }
+.nav-item.active { background: var(--surface2); color: var(--ink); font-weight: 600; }
+.nav-item .ic { width: 20px; height: 20px; display: grid; place-items: center; color: var(--muted); flex: none; }
+.nav-item.active .ic { color: var(--ink); }
+.nav-item .ic svg { width: 18px; height: 18px; display: block; }
+.nav-foot { padding: 14px 16px 16px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+.space-avatar { width: 36px; height: 36px; border-radius: 50%; background: #F8E6DC; color: #C2410C; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex: none; }
+.space-meta { min-width: 0; }
+.space-meta b { display: block; font-size: 13px; font-weight: 600; }
+.space-meta small { display: block; font-size: 12px; color: var(--muted); }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; }
+.badge.green { background: var(--green-soft); color: var(--green); }
+.badge.yellow { background: var(--yellow-soft); color: var(--yellow); }
+.badge.red { background: var(--red-soft); color: var(--red); }
+.badge.blue { background: var(--blue-soft); color: var(--blue); }
+.badge.orange { background: var(--accent-soft); color: var(--accent); }
+.badge.grey { background: var(--surface2); color: var(--muted); }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Studio component palette (replaces left-nav while a template is open) */
+.comp-palette {
+  display: none; background: var(--surface); border-right: 1px solid var(--line);
+  flex-direction: column; overflow: hidden; min-height: 0; min-width: 0;
+}
+.shell.studio-focus .comp-palette { display: flex; }
+.palette-head { padding: 16px 14px 8px; flex: none; }
+.palette-head h2 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: -.02em; }
+.palette-scroll { flex: 1; overflow-y: auto; padding: 4px 8px 16px; }
+.palette-cat {
+  margin: 10px 0 4px; font-size: 11px; font-weight: 600; color: var(--faint);
+  letter-spacing: .08em; text-transform: uppercase; padding: 0 8px;
+}
+.palette-item {
+  display: block; width: 100%; text-align: left; background: none; border: 0;
+  border-radius: 8px; padding: 6px 8px; cursor: grab; color: var(--ink);
+  font-size: 13px; font-weight: 500;
+}
+.palette-item:hover:not(:disabled) { background: var(--surface2); }
+.palette-item:disabled { opacity: .4; cursor: not-allowed; }
+.palette-item.selected { background: var(--accent-soft); font-weight: 600; }
+.palette-item.on-design { color: var(--muted); }
+.palette-empty { margin: 8px; font-size: 12px; color: var(--faint); }
+
+/* Main area */
+.main { display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; min-height: 0; }
+.top-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 32px; border-bottom: 1px solid var(--line); background: var(--surface); flex-shrink: 0; }
+.top-bar-actions { display: flex; align-items: center; gap: 12px; flex: none; }
+.crumb { color: var(--muted); font-size: 13px; }
+.crumb-sep { margin: 0 8px; color: var(--faint); }
+.top-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+
+/* shadcn-style dropdown (portaled to body so overflow:hidden shells do not clip it) */
+.dd-panel {
+  position: fixed; z-index: 70; width: 10rem; min-width: 10rem; padding: 4px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: var(--shadow-lg); outline: none;
+}
+.dd-item, .dd-sub-trigger {
+  display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none;
+  border-radius: 4px; padding: 6px 8px; font-size: 13px; line-height: 1.25; text-align: left;
+  cursor: pointer; color: var(--ink);
+}
+.dd-item:hover, .dd-item:focus-visible, .dd-sub-trigger:hover, .dd-sub-trigger:focus-visible,
+.dd-sub-trigger[aria-expanded="true"] { background: var(--surface2); outline: none; }
+.dd-item[aria-disabled="true"] { opacity: .45; pointer-events: none; cursor: default; }
+.dd-shortcut { margin-left: auto; font-size: 11px; letter-spacing: .08em; color: var(--faint); }
+.dd-label { padding: 6px 8px; font-size: 12px; font-weight: 600; color: var(--ink); }
+.dd-sep { height: 1px; background: var(--line); margin: 4px -4px; }
+.dd-chevron { margin-left: auto; width: 12px; height: 12px; color: var(--muted); flex: none; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22C55E; }
+.main-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 28px 36px 40px; }
+.main-scroll.studio-scroll { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+
+/* Cards and sections */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.card-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.card-body { padding: 18px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* Form controls */
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.field label { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.field label .type-tag { font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 4px; background: var(--surface2); color: var(--muted); font-family: var(--mono); }
+.field label .ai-tag { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+.field .hint { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
+input[type="text"], input[type="email"], select, textarea { width: 100%; background: var(--surface); border: 1px solid var(--line2); border-radius: 8px; padding: 8px 10px; transition: border-color .15s; }
+input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 80px; }
+textarea.code { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; min-height: 400px; background: #1E1E1E; color: #D4D4D4; border: 1px solid #333; border-radius: 8px; tab-size: 2; white-space: pre; }
+textarea.prompt-display { min-height: 320px; background: var(--surface2); font-size: 13px; line-height: 1.7; }
+input[type="color"] { width: 40px; height: 34px; padding: 2px; border: 1px solid var(--line2); border-radius: 7px; background: var(--surface); cursor: pointer; flex: none; }
+.color-row { display: flex; gap: 8px; align-items: center; }
+.color-hex { flex: 1; font-family: var(--mono); font-size: 13px; }
+
+/* Buttons */
+.btn { border-radius: 8px; padding: 8px 14px; font-weight: 500; border: 1px solid var(--line2); background: var(--surface); cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.btn[hidden] { display: none !important; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.07); }
+.btn.ghost { border: 0; background: none; color: var(--accent); }
+.btn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+.btn.blue { background: var(--blue); color: #fff; border-color: var(--blue); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.small { padding: 5px 10px; font-size: 12px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* Params list */
+.params-list, .comp-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+.param-card, .comp-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.param-head, .comp-item-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+}
+.param-title, .comp-item-head b { flex: 1; font-size: 13px; line-height: 1.3; min-width: 0; }
+.param-type-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface3); color: var(--muted); font-family: var(--mono); flex: none; }
+.param-type-badge.image { background: var(--blue-soft); color: var(--blue); }
+.param-type-badge.color { background: #FFF0F0; color: #C2410C; }
+.param-type-badge.select { background: #F0FFF4; color: #166534; }
+.param-type-badge.slider { background: #F5F3FF; color: #5B21B6; }
+.param-type-badge.text, .param-type-badge.textarea { background: var(--surface2); color: var(--muted); }
+.param-type-badge.switch { background: #FEF3C7; color: #92400E; }
+.param-type-badge.palette { background: #EDE9FE; color: #4C1D95; }
+.param-type-badge.multiselect { background: #F0FFF4; color: #166534; }
+.param-fill {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 12px 12px; overflow: auto;
+}
+.param-desc {
+  margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.param-fill > .ctl-stack { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.param-fill > :last-child { flex: 1; min-height: 0; }
+.param-card .drop { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.param-card .drop-empty { justify-content: center; padding: 16px 8px; }
+.param-card .drop img { max-height: 180px; object-fit: contain; }
+.param-card .color-row { align-items: center; }
+.param-card input[type="color"] { width: 40px; min-height: 34px; height: 34px; padding: 2px; }
+.param-body { padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 700px) { .param-body { grid-template-columns: 1fr; } }
+.param-handle { cursor: grab; color: var(--faint); margin-right: 4px; }
+.param-drag { margin-left: auto; display: flex; gap: 6px; }
+
+/* Prompt preview panel (right drawer) */
+.right-rail {
+  position: absolute; top: 0; right: 0; width: min(420px, 92%); height: 100%;
+  background: var(--surface); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; overflow: hidden; z-index: 40;
+  transform: translateX(100%); transition: transform .28s ease;
+  box-shadow: none;
+}
+.right-rail.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
+.rail-head { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.rail-head h2 { margin: 0; font-size: 14px; font-weight: 700; }
+.rail-scroll { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.rail-backdrop {
+  position: fixed; inset: 0; background: rgba(26,26,26,.28); z-index: 39;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.rail-backdrop.open { opacity: 1; pointer-events: auto; }
+.prompt-tab { display: none !important; }
+.tpl-desc { display: flex; gap: 16px; align-items: flex-start; }
+.tpl-desc-thumb {
+  width: 88px; height: 88px; flex: none; border-radius: 10px; overflow: hidden;
+  background: var(--surface2); border: 1px solid var(--line); display: grid; place-items: center; font-size: 32px;
+}
+.tpl-desc-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.tpl-desc-copy { min-width: 0; flex: 1; }
+.color-hex-preview { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+.seg-items { display: flex; flex-direction: column; }
+.prompt-item + .prompt-item { border-top: 1px solid var(--line); }
+.prompt-item-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: none; border: 0; padding: 10px 12px; text-align: left; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--ink);
+}
+.prompt-item-head:hover { background: var(--surface2); }
+.prompt-chevron { color: var(--faint); font-size: 11px; transition: transform .15s; }
+.prompt-item.open .prompt-chevron { transform: rotate(180deg); }
+.prompt-item-body {
+  display: none; padding: 0 12px 12px; font-family: var(--mono); font-size: 12px;
+  line-height: 1.65; white-space: pre-wrap; color: var(--ink);
+}
+.prompt-item.open .prompt-item-body { display: block; }
+@media (prefers-reduced-motion: reduce) {
+  .right-rail, .rail-backdrop, .prompt-chevron { transition: none; }
+}
+
+/* Prompt segment rows */
+.segment { border-radius: 9px; overflow: hidden; border: 1px solid var(--line); flex-shrink: 0; }
+.seg-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--line); }
+.seg-body { padding: 10px 12px; font-size: 13px; line-height: 1.65; color: var(--ink); }
+.seg-body.mono { font-family: var(--mono); font-size: 12px; background: var(--surface2); }
+.seg-head.resolved { background: var(--green-soft); color: var(--green); border-color: color-mix(in srgb, var(--green) 25%, transparent); }
+.seg-head.placeholder { background: var(--yellow-soft); color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 25%, transparent); }
+.seg-head.image { background: var(--blue-soft); color: var(--blue); border-color: color-mix(in srgb, var(--blue) 25%, transparent); }
+.seg-head.code { background: var(--surface2); color: var(--muted); }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px; font-size: 11px; border: 1px solid currentColor; }
+
+/* Template cards grid */
+.tpl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1100px) { .tpl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .tpl-grid { grid-template-columns: 1fr; } }
+.tpl-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; overflow: hidden; transition: box-shadow .15s, border-color .15s; }
+.tpl-card:hover { box-shadow: var(--shadow); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.tpl-thumb { aspect-ratio: 4 / 3; width: 100%; height: auto; background: #F3F4F6; display: grid; place-items: center; font-size: 36px; font-weight: 500; color: var(--accent); overflow: hidden; font-family: Georgia, "Times New Roman", serif; }
+.tpl-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.drop.square-fit img { aspect-ratio: 1 / 1; width: 100%; max-height: none; object-fit: cover; }
+.tpl-info { padding: 12px 14px 14px; }
+.tpl-info h3 { margin: 0; font-size: 13px; font-weight: 500; }
+.qref-list { display: flex; flex-direction: column; gap: 8px; }
+.qref-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface2); }
+.qref-row > div { min-width: 0; }
+.qref-row b { display: block; font-size: 13px; }
+.qref-row small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Jobs list */
+.job-row { display: flex; align-items: flex-start; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.job-row:last-child { border-bottom: 0; }
+.job-thumb { width: 60px; height: 60px; border-radius: 8px; background: var(--surface2); object-fit: cover; border: 1px solid var(--line); flex: none; display: grid; place-items: center; color: var(--faint); overflow: hidden; }
+.job-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.job-info { flex: 1; min-width: 0; }
+.job-info b { display: block; font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.job-info small { display: block; font-size: 12px; color: var(--muted); margin: 2px 0; }
+.job-warn { font-size: 12px; color: var(--yellow); margin-top: 4px; }
+
+/* Image upload */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+.drop { border: 2px dashed var(--line2); border-radius: 10px; background: var(--surface2); cursor: pointer; overflow: hidden; transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop.has-image { border-style: solid; background: var(--surface); }
+.drop-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 26px 16px; text-align: center; }
+.drop-empty b { font-size: 14px; }
+.drop-empty small { color: var(--muted); font-size: 12px; }
+.drop-ic { width: 36px; height: 36px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); display: grid; place-items: center; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+.drop img { display: block; width: 100%; max-height: 320px; object-fit: contain; background: repeating-conic-gradient(var(--surface2) 0 25%, var(--surface) 0 50%) 0 0 / 16px 16px; }
+.drop-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.drop-meta { font-size: 12px; color: var(--muted); font-family: var(--mono); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drop-err { color: var(--red); font-size: 12px; margin: 6px 0 0; }
+.drop-err:empty { display: none; }
+
+/* Components */
+.comp-item-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow: auto; }
+.comp-item-body > .full { min-width: 0; }
+.comp-item-body .ctl-label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+.comp-item-body .param-desc { -webkit-line-clamp: 3; }
+.comp-item .chips { gap: 4px; }
+.comp-item .chip { padding: 3px 8px; font-size: 11px; }
+.icon-btn { border: 1px solid var(--line2); background: var(--surface); border-radius: 6px; width: 26px; height: 26px; display: grid; place-items: center; cursor: pointer; font-size: 12px; color: var(--muted); padding: 0; }
+.icon-btn:hover:not(:disabled) { border-color: var(--muted); color: var(--ink); }
+.icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+.scope { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; flex: none; }
+.scope.theme { background: var(--accent-soft); color: #C2410C; }
+.scope.element { background: var(--blue-soft); color: var(--blue); }
+.scope.rule { background: var(--red-soft); color: var(--red); }
+.picker { display: flex; flex-direction: column; gap: 16px; }
+.picker h4 { margin: 0 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.pick-tile {
+  text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 6px;
+  min-width: 0; box-shadow: var(--shadow); position: relative;
+}
+.pick-tile:hover:not(:disabled) { border-color: var(--accent); box-shadow: var(--shadow-lg); }
+.pick-tile:disabled { cursor: not-allowed; opacity: .55; }
+.pick-preview { border-radius: 8px; min-height: 0; flex: 1; display: grid; place-items: center; font-size: 28px; }
+.pick-preview.theme { background: var(--accent-soft); }
+.pick-preview.element { background: var(--blue-soft); }
+.pick-preview.rule { background: var(--red-soft); }
+.pick-tile .row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pick-tile b { font-size: 13px; line-height: 1.3; }
+.pick-tile small { font-size: 11.5px; color: var(--muted); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pick-tile small.why { color: var(--red); -webkit-line-clamp: 2; }
+.pick-tile small.swap { color: #C2410C; -webkit-line-clamp: 2; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line2); background: var(--surface); border-radius: 999px; padding: 4px 11px; font-size: 12.5px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.seg-head.sec-template { background: var(--surface2); color: var(--muted); }
+.seg-head.sec-input { background: var(--blue-soft); color: var(--blue); }
+.seg-head.sec-element { background: var(--blue-soft); color: var(--blue); }
+.seg-head.sec-theme { background: var(--accent-soft); color: #C2410C; }
+.seg-head.sec-rule { background: var(--red-soft); color: var(--red); }
+.seg-body .src { display: block; font-family: var(--sans); font-size: 10.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .04em; margin-top: 8px; }
+.seg-body .src:first-child { margin-top: 0; }
+.comp-preview { white-space: pre-wrap; font-family: var(--mono); font-size: 12px; line-height: 1.6; background: var(--surface2); border-radius: 8px; padding: 10px 12px; margin: 0; }
+.split { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .split { grid-template-columns: 1fr; } }
+.comp-form-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.comp-form-row label { font-size: 12px; font-weight: 600; color: var(--muted); }
+.comp-form-hint { margin: 0 0 10px; font-size: 12px; color: var(--faint); }
+.param-fn-card {
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+  background: var(--surface2);
+}
+.param-fn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.param-fn-grid .full { grid-column: 1 / -1; }
+.comp-fn-select { font-size: 12px; padding: 6px 8px; }
+
+/* Component library tiles */
+.frag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.frag-card { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; }
+.frag-card h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+.frag-card .role { font-size: 11px; color: var(--muted); margin: 0 0 8px; }
+.frag-card .desc { font-size: 12px; color: var(--ink); margin: 0 0 8px; line-height: 1.5; }
+.frag-card .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.frag-card pre { margin: 0; font-family: var(--mono); font-size: 11.5px; line-height: 1.55; color: var(--muted); white-space: pre-wrap; overflow: hidden; max-height: 80px; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 500; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.toast.show { opacity: 1; }
+.toast.error { background: var(--red); }
+
+/* Inline notices */
+.notice { border-radius: 9px; padding: 12px 14px; font-size: 13px; margin: 10px 0; }
+.notice.warn { background: var(--yellow-soft); border: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent); color: var(--yellow); }
+.notice.error { background: var(--red-soft); border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); color: var(--red); }
+.notice.ok { background: var(--green-soft); border: 1px solid color-mix(in srgb, var(--green) 30%, transparent); color: var(--green); }
+.errs { list-style: disc; padding-left: 18px; margin: 4px 0; }
+
+/* Loading spinner */
+.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+/* Component picker modal */
+.modal-root {
+  position: fixed; inset: 0; z-index: 50; display: none; place-items: center; padding: 24px;
+}
+.modal-root.open { display: grid; }
+.modal-scrim { position: absolute; inset: 0; background: rgba(26,26,26,.4); }
+.modal {
+  position: relative; z-index: 1; width: min(920px, 100%); max-height: min(88vh, 820px);
+  background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line);
+}
+.modal-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 16px 18px; border-bottom: 1px solid var(--line); flex: none;
+}
+.modal-head h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.modal-sub { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.modal-head-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+#compModalMulti[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.pick-tile.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.pick-tile { position: relative; }
+.pick-check {
+  position: absolute; top: 10px; right: 10px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 700;
+  display: grid; place-items: center; line-height: 1;
+}
+.modal-body { overflow-y: auto; padding: 18px; background: var(--bg); }
+@media (prefers-reduced-motion: reduce) { .modal-scrim { transition: none; } }
+
+/* Page header */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.page-header h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.03em; line-height: 1.15; }
+.page-sub { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+.page-header-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; flex: none; }
+.page-search { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; margin-bottom: 20px; }
+.page-search:focus { border-color: var(--line2); outline: none; }
+.empty-copy { color: var(--ink); font-size: 14px; margin: 8px 0 0; }
+.demo-caption { text-align: center; font-size: 12px; color: var(--faint); margin: 10px 0 0; }
+
+/* Design studio */
+.studio-page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 16px 20px 12px; }
+.studio-page > .page-header { margin-bottom: 12px; }
+.studio-page > .page-header h1 { font-size: 22px; }
+.studio-page .page-sub { margin-top: 4px; }
+.studio-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(240px, 340px) minmax(0, 1fr); }
+.studio-rail { overflow-y: auto; padding: 0 20px 16px 0; border-right: 1px solid var(--line); min-height: 0; }
+.studio-preview {
+  min-height: 0; min-width: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+  padding: 0 8px 16px 24px;
+}
+.studio-sec { margin-bottom: 14px; }
+.studio-sec-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.studio-sec-head h2 { margin: 0; font-size: 13px; font-weight: 600; }
+.studio-sec-num { font-size: 11px; color: var(--faint); letter-spacing: .08em; }
+.studio-sec-hint { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+.studio-page .params-list, .studio-page .comp-list { gap: 8px; }
+.studio-page .param-card .drop-empty { padding: 10px 8px; }
+.studio-drop {
+  min-height: 64px; border: 1.5px dashed var(--line2); border-radius: 10px;
+  padding: 8px; display: flex; flex-direction: column; gap: 8px; background: var(--surface);
+  transition: border-color .15s, background .15s;
+}
+.studio-drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.studio-drop-hint { margin: 0; font-size: 12px; color: var(--faint); text-align: center; padding: 12px 6px; }
+.gen-btn { width: 100%; justify-content: center; padding: 10px 16px; border-radius: 10px; font-size: 14px; }
+.choose-comp {
+  width: 100%; border: 1.5px dashed var(--line2); background: transparent; border-radius: 10px;
+  padding: 14px; cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 500;
+}
+.choose-comp:hover { border-color: var(--accent); color: var(--ink); background: var(--accent-soft); }
+.preview-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: nowrap; flex: none; }
+.preview-toolbar .btn-row { flex-wrap: nowrap; }
+.preview-label { font-size: 14px; font-weight: 500; color: var(--ink); flex: none; }
+.preview-fit {
+  flex: 1 1 auto; min-height: 0; min-width: 0;
+  container-type: size;
+  display: flex; align-items: center; justify-content: center;
+}
+.preview-canvas {
+  --rw: var(--preview-w, 1);
+  --rh: var(--preview-h, 1);
+  aspect-ratio: var(--rw) / var(--rh);
+  width: min(100cqw, calc(100cqh * var(--rw) / var(--rh)));
+  height: min(100cqh, calc(100cqw * var(--rh) / var(--rw)));
+  max-width: 100%; max-height: 100%;
+  background: #fff; border-radius: 4px; box-shadow: var(--shadow-lg);
+  display: grid; place-items: center; position: relative; overflow: hidden; flex: none;
+}
+.preview-canvas img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.preview-empty { color: var(--faint); font-size: 13px; padding: 24px; }
+.preview-busy { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+.preview-meta { flex: none; text-align: center; }
+.preview-size { font-size: 12px; color: var(--faint); margin-top: 10px; }
+.preview-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; justify-content: center; }
+.select-btn {
+  appearance: none; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%236B7280' stroke-width='1.6' stroke-linecap='round' d='M1.5 1.5 6 6l4.5-4.5'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1px solid var(--line2); border-radius: 8px; padding: 7px 28px 7px 12px; font-size: 13px; font-weight: 500; cursor: pointer; max-width: 200px;
+}
+.job-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.job-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; cursor: pointer; text-align: left; padding: 0; width: 100%; color: inherit; display: flex; flex-direction: column; }
+.job-card:hover { box-shadow: var(--shadow); }
+.job-card .job-thumb { width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: 0; border: 0; }
+.job-card .job-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.job-card .job-info { padding: 10px 12px 8px; }
+.engine-line { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="shell rail-hidden">
+
+<!-- ─── Left nav ───────────────────────────────────────────── -->
+<nav class="left-nav">
+  <div class="nav-head">
+    <div class="logo">
+      <span class="logo-mark">p</span>
+      <span class="logo-word">palette<span class="logo-dot">.</span></span>
+    </div>
+  </div>
+  <div class="nav-scroll">
+    <div class="nav-section">Workspace</div>
+    <button class="nav-item" data-view="studio" type="button">
+      <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg></span>
+      Design studio
+    </button>
+    <button class="nav-item" data-view="templates" type="button">
+      <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/></svg></span>
+      Themes
+    </button>
+    <button class="nav-item" data-view="jobs" type="button">
+      <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v5l3 2"/></svg></span>
+      Recent designs
+    </button>
+    <div class="nav-section">Manage</div>
+    <button class="nav-item" data-view="components" type="button">
+      <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="6" rx="1.2"/><rect x="4" y="14" width="16" height="6" rx="1.2"/></svg></span>
+      Components
+    </button>
+    <button class="nav-item" data-view="newTemplate" type="button">
+      <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+      New template
+    </button>
+  </div>
+  <div class="nav-foot">
+    <div class="space-avatar" aria-hidden="true">PS</div>
+    <div class="space-meta">
+      <b>Personal space</b>
+      <small>Template workspace</small>
+      <div class="engine-line" id="engineBadge"></div>
+    </div>
+  </div>
+</nav>
+
+<aside class="comp-palette" id="compPalette" aria-label="Component library" aria-hidden="true">
+  <div class="palette-head"><h2>Components</h2></div>
+  <div class="palette-scroll" id="compPaletteScroll"></div>
+</aside>
+
+<!-- ─── Main content ───────────────────────────────────────── -->
+<main class="main">
+  <header class="top-bar">
+    <div class="crumb" id="mainCrumb">Workspace <span class="crumb-sep">›</span> Design studio</div>
+    <div class="top-bar-actions">
+      <div class="top-status"><span class="status-dot" aria-hidden="true"></span> Interactive concept</div>
+      <button type="button" class="btn" id="accountMenuBtn">Open</button>
+    </div>
+  </header>
+  <div class="main-scroll" id="mainScroll"></div>
+</main>
+
+<!-- ─── Right rail: live prompt preview ────────────────────── -->
+<aside class="right-rail" id="promptDrawer" aria-hidden="true">
+  <div class="rail-head">
+    <h2>Live prompt preview</h2>
+    <span class="btn-row">
+      <span id="railBadge"></span>
+      <button type="button" class="icon-btn" id="promptDrawerClose" aria-label="Close live prompt preview">✕</button>
+    </span>
+  </div>
+  <div class="rail-scroll" id="railContent">
+    <p style="color:var(--faint);font-size:13px">Select a template to see its prompt build up as you fill in the parameters.</p>
+  </div>
+</aside>
+
+</div>
+<div class="rail-backdrop" id="railBackdrop"></div>
+<button type="button" class="prompt-tab" id="promptTab" aria-controls="promptDrawer" aria-expanded="false">Live prompt preview</button>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="modal-root" id="compModalRoot" hidden>
+  <div class="modal-scrim" id="compModalScrim"></div>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="compModalTitle">
+    <div class="modal-head">
+      <div>
+        <h2 id="compModalTitle">Add component</h2>
+        <p class="modal-sub" id="compModalSub">Preview every component, then click one to stack it on this template.</p>
+      </div>
+      <div class="modal-head-actions">
+        <button type="button" class="btn small primary" id="compModalAdd" hidden>Add selected</button>
+        <button type="button" class="btn small" id="compModalMulti" aria-pressed="false">Select multiple</button>
+        <button type="button" class="icon-btn" id="compModalClose" aria-label="Close add component">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="compModalBody"></div>
+  </div>
+</div>
+<input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" class="sr" tabindex="-1" style="position:absolute;opacity:0;pointer-events:none">
+
+<script id="regData">window.__PALETTE_REGISTRY__ = /*__REGISTRY__*/null;</script>
+<script type="module">
+// ── Shared compiler (inlined at build time) ──────────────────
+/*__COMPILER__*/
+
+// ── State ────────────────────────────────────────────────────
+const DEMO_REGISTRY = window.__PALETTE_REGISTRY__;
+let REG = null;
+let MODE = "demo";
+let currentView = "studio";
+let selectedTemplateId = null;
+let liveValues = {};   // { paramId: currentValue }
+let compiled = null;
+let pollers = {};
+let liveComponents = []; // [{ id, values, slot }] stacked on the open template
+let pickerOpen = false;
+let promptDrawerOpen = false;
+let expandedPromptKeys = new Set();
+let compModalMulti = false;
+let compModalSelected = new Set();
+let compModalTemplate = null;
+let compModalSlot = "canvas";
+let selectedPaletteId = null;
+const SLOT_ORDER = { subject: 0, canvas: 1, background: 2 };
+
+// ── Init ─────────────────────────────────────────────────────
+async function init() {
+  const server = await tryJson("api/registry");
+  if (server?.templates) {
+    REG = server;
+    REG.components ||= {};
+    MODE = "server";
+  } else {
+    REG = JSON.parse(JSON.stringify(DEMO_REGISTRY));
+    REG.components ||= {};
+    MODE = "demo";
+  }
+  $("#engineBadge").innerHTML = MODE === "server"
+    ? `<span class="badge green">Backend connected</span>&nbsp;<span class="badge grey">${REG.engine?.model || ""}</span>`
+    : `<span class="badge yellow">Demo mode</span>`;
+  document.querySelectorAll(".nav-item[data-view]").forEach((b) => {
+    b.addEventListener("click", () => setView(b.dataset.view));
+  });
+  backToStudio();
+  autoRefreshJobs();
+  $("#promptDrawerClose")?.addEventListener("click", () => setPromptDrawerOpen(false));
+  $("#railBackdrop")?.addEventListener("click", () => setPromptDrawerOpen(false));
+  $("#promptTab")?.addEventListener("click", () => setPromptDrawerOpen(true));
+  $("#compModalClose")?.addEventListener("click", () => closeComponentModal());
+  $("#compModalScrim")?.addEventListener("click", () => closeComponentModal());
+  $("#compModalMulti")?.addEventListener("click", () => setComponentMultiSelect(!compModalMulti));
+  $("#compModalAdd")?.addEventListener("click", () => addSelectedComponents());
+  attachDropdownMenu($("#accountMenuBtn"), accountMenuItems(), { align: "end" });
+  document.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".dd-panel") || e.target.closest("[data-dd-trigger]")) return;
+    closeDropdownMenus();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (document.querySelector(".dd-panel")) {
+      closeDropdownMenus();
+      return;
+    }
+    if ($("#compModalRoot")?.classList.contains("open")) {
+      closeComponentModal();
+      return;
+    }
+    if (promptDrawerOpen) setPromptDrawerOpen(false);
+  });
+}
+
+async function tryJson(url) {
+  try {
+    const ctrl = new AbortController(); setTimeout(() => ctrl.abort(), 2000);
+    const r = await fetch(url, { signal: ctrl.signal, headers: { accept: "application/json" } });
+    if (!r.ok || !(r.headers.get("content-type")||"").includes("json")) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+const $ = (s, r=document) => r.querySelector(s);
+function h(tag, attrs={}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k,v] of Object.entries(attrs||{})) {
+    if (v==null||v===false) continue;
+    if (k==="class") el.className=v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2),v);
+    else if (k==="html") el.innerHTML=v;
+    else if (v===true) el.setAttribute(k,"");
+    else el.setAttribute(k,v);
+  }
+  for (const k of kids.flat(9)) if (k!=null&&k!==false) el.append(k?.nodeType?k:document.createTextNode(k));
+  return el;
+}
+let toastTimer;
+function toast(msg, kind="") {
+  const t = $("#toast"); t.textContent=msg; t.className=`toast show ${kind}`;
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.className="toast", kind==="error"?5000:3000);
+}
+
+const DD_CHEVRON = `<svg class="dd-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>`;
+
+/**
+ * Removes every open dropdown panel and resets trigger state.
+ *
+ * @returns {void}
+ */
+const closeDropdownMenus = () => {
+  document.querySelectorAll(".dd-panel").forEach((el) => el.remove());
+  document.querySelectorAll("[data-dd-trigger][aria-expanded='true']").forEach((el) => el.setAttribute("aria-expanded", "false"));
+};
+
+/**
+ * Places a portaled dropdown next to its trigger.
+ *
+ * @param {HTMLElement} panel - Menu panel
+ * @param {HTMLElement} anchor - Trigger or parent item
+ * @param {{ align?: string, side?: string }} [opts]
+ * @returns {void}
+ */
+const placeDropdownPanel = (panel, anchor, opts = {}) => {
+  const align = opts.align || "start";
+  const side = opts.side || "bottom";
+  const r = anchor.getBoundingClientRect();
+  const w = panel.offsetWidth;
+  const h = panel.offsetHeight;
+  let top = side === "right" ? r.top : r.bottom + 4;
+  let left = align === "end" ? r.right - w : r.left;
+  if (side === "right") left = r.right + 4;
+  if (left + w > innerWidth - 8) left = side === "right" ? Math.max(8, r.left - w - 4) : Math.max(8, innerWidth - w - 8);
+  if (top + h > innerHeight - 8) top = Math.max(8, (side === "bottom" ? r.top - h - 4 : innerHeight - h - 8));
+  if (left < 8) left = 8;
+  if (top < 8) top = 8;
+  panel.style.top = `${top}px`;
+  panel.style.left = `${left}px`;
+};
+
+/**
+ * Renders one dropdown panel from a list of item descriptors.
+ *
+ * @param {object[]} items - Menu entries
+ * @param {{ onPick?: Function }} [opts]
+ * @returns {HTMLElement}
+ */
+const renderDropdownPanel = (items, opts = {}) => {
+  const panel = h("div", { class: "dd-panel", role: "menu", tabindex: "-1" });
+  let subTimer = 0;
+  let subPanel = null;
+
+  /**
+   * Closes the nested submenu panel.
+   *
+   * @returns {void}
+   */
+  const closeSub = () => {
+    clearTimeout(subTimer);
+    subPanel?.remove();
+    subPanel = null;
+    panel.querySelectorAll(".dd-sub-trigger[aria-expanded='true']").forEach((el) => el.setAttribute("aria-expanded", "false"));
+  };
+
+  /**
+   * Opens a nested submenu to the right of a trigger item.
+   *
+   * @param {HTMLElement} trigger - Submenu trigger row
+   * @param {object[]} subItems - Nested entries
+   * @returns {void}
+   */
+  const openSub = (trigger, subItems) => {
+    clearTimeout(subTimer);
+    if (subPanel && trigger.getAttribute("aria-expanded") === "true") return;
+    closeSub();
+    trigger.setAttribute("aria-expanded", "true");
+    subPanel = renderDropdownPanel(subItems, opts);
+    subPanel.classList.add("dd-sub-panel");
+    document.body.append(subPanel);
+    placeDropdownPanel(subPanel, trigger, { side: "right", align: "start" });
+    subPanel.addEventListener("pointerenter", () => clearTimeout(subTimer));
+    subPanel.addEventListener("pointerleave", () => { subTimer = setTimeout(closeSub, 140); });
+  };
+
+  for (const item of items) {
+    if (item.type === "sep") {
+      panel.append(h("div", { class: "dd-sep", role: "separator" }));
+      continue;
+    }
+    if (item.type === "label") {
+      panel.append(h("div", { class: "dd-label" }, item.label));
+      continue;
+    }
+    if (item.type === "sub") {
+      const row = h("button", {
+        type: "button",
+        class: "dd-sub-trigger",
+        role: "menuitem",
+        "aria-haspopup": "menu",
+        "aria-expanded": "false"
+      }, item.label);
+      row.insertAdjacentHTML("beforeend", DD_CHEVRON);
+      row.addEventListener("pointerenter", () => openSub(row, item.items || []));
+      row.addEventListener("pointerleave", () => { subTimer = setTimeout(closeSub, 140); });
+      row.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openSub(row, item.items || []);
+      });
+      panel.append(row);
+      continue;
+    }
+    const btn = h("button", {
+      type: "button",
+      class: "dd-item",
+      role: "menuitem",
+      "aria-disabled": item.disabled ? "true" : "false",
+      disabled: item.disabled || false
+    }, item.label, item.shortcut ? h("span", { class: "dd-shortcut" }, item.shortcut) : null);
+    if (!item.disabled) {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        closeDropdownMenus();
+        if (typeof item.onSelect === "function") item.onSelect();
+        else if (item.href) window.open(item.href, "_blank", "noopener");
+        else toast(item.label);
+      });
+    }
+    panel.append(btn);
+  }
+  return panel;
+};
+
+/**
+ * Attaches a dropdown menu to a trigger button.
+ *
+ * @param {HTMLElement} trigger - Button that opens the menu
+ * @param {object[]} items - Menu entries
+ * @param {{ align?: string }} [opts]
+ * @returns {void}
+ */
+const attachDropdownMenu = (trigger, items, opts = {}) => {
+  if (!trigger) return;
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.dataset.ddTrigger = "true";
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const wasOpen = trigger.getAttribute("aria-expanded") === "true";
+    closeDropdownMenus();
+    if (wasOpen) return;
+    trigger.setAttribute("aria-expanded", "true");
+    const panel = renderDropdownPanel(items, opts);
+    document.body.append(panel);
+    placeDropdownPanel(panel, trigger, { align: opts.align || "start" });
+  });
+};
+
+/**
+ * Account menu used by the header Open control (shadcn dropdown demo).
+ *
+ * @returns {object[]}
+ */
+const accountMenuItems = () => [
+  { type: "label", label: "My Account" },
+  { type: "item", label: "Profile", shortcut: "⇧⌘P" },
+  { type: "item", label: "Billing", shortcut: "⌘B" },
+  { type: "item", label: "Settings", shortcut: "⌘S" },
+  { type: "sep" },
+  { type: "item", label: "Team" },
+  { type: "sub", label: "Invite users", items: [
+    { type: "item", label: "Email" },
+    { type: "item", label: "Message" },
+    { type: "sep" },
+    { type: "item", label: "More..." }
+  ] },
+  { type: "item", label: "New Team", shortcut: "⌘+T" },
+  { type: "sep" },
+  { type: "item", label: "GitHub", href: "https://github.com" },
+  { type: "item", label: "Support" },
+  { type: "item", label: "API", disabled: true },
+  { type: "sep" },
+  { type: "item", label: "Log out", shortcut: "⇧⌘Q" }
+];
+const tmplList = () => Object.values(REG.templates||{});
+const compList = () => Object.values(REG.components||{}).sort((a,b)=>catOrder(a.category)-catOrder(b.category)||a.name.localeCompare(b.name));
+const catOrder = c => { const i = COMPONENT_CATEGORIES.indexOf(c); return i<0?99:i; };
+const typeEmoji = {image:"🖼", color:"🎨", select:"☰", multiselect:"☷", slider:"⟺", text:"T", textarea:"¶", switch:"⏻", palette:"🎨"};
+const scopeLabel = {theme:"Theme", element:"Element", rule:"Rule"};
+const scopeBadge = s => h("span",{class:`scope ${s}`},scopeLabel[s]||s);
+const scopeMark = {theme:"◐", element:"▣", rule:"☰"};
+
+/**
+ * Clears the main scroll area and restores default page padding.
+ *
+ * @returns {HTMLElement} The main scroll container
+ */
+const resetScroll = () => {
+  const scroll = $("#mainScroll");
+  scroll.innerHTML = "";
+  scroll.className = "main-scroll";
+  return scroll;
+};
+
+/**
+ * Builds the in-page title row used on every workspace screen.
+ *
+ * @param {string} title - Page heading
+ * @param {string} [subtitle] - Supporting line under the title
+ * @param {HTMLElement|HTMLElement[]|null} [action] - Optional trailing control(s)
+ * @returns {HTMLElement}
+ */
+const pageHeader = (title, subtitle, action = null) =>
+  h("div", { class: "page-header" },
+    h("div", {},
+      h("h1", {}, title),
+      subtitle ? h("p", { class: "page-sub" }, subtitle) : null),
+    action ? h("div", { class: "page-header-actions" }, action) : null);
+
+/**
+ * Updates the top breadcrumb and highlights the matching sidebar item.
+ *
+ * @param {string} crumb - Label after Workspace
+ * @param {string} navView - `data-view` of the sidebar item to mark active
+ * @returns {void}
+ */
+const setChrome = (crumb, navView) => {
+  const el = $("#mainCrumb");
+  if (el) el.innerHTML = `Workspace <span class="crumb-sep">›</span> ${crumb}`;
+  document.querySelectorAll(".nav-item[data-view]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.view === navView);
+  });
+};
+
+/**
+ * Shows the component palette instead of the Workspace/Manage sidebar on studio.
+ *
+ * @param {boolean} on - Whether Design studio is in focused chrome
+ * @param {object|null} [t] - Open template used to enable/disable palette rows
+ * @returns {void}
+ */
+const setStudioFocus = (on, t = null) => {
+  document.querySelector(".shell")?.classList.toggle("studio-focus", Boolean(on));
+  const pal = $("#compPalette");
+  pal?.setAttribute("aria-hidden", String(!on));
+  if (on) drawComponentPalette(t);
+  else {
+    const el = $("#compPaletteScroll");
+    if (el) el.innerHTML = "";
+  }
+};
+
+/**
+ * Returns a Back-to-workspace button that opens the Themes gallery.
+ *
+ * @returns {HTMLElement}
+ */
+const backToWorkspaceBtn = () =>
+  h("button", { class: "btn", type: "button", onclick: () => setView("templates") }, "Back to workspace");
+
+/**
+ * Returns a Back-to-studio button for list and admin pages.
+ *
+ * @returns {HTMLElement}
+ */
+const backToStudioBtn = () =>
+  h("button", { class: "btn", type: "button", onclick: () => backToStudio() }, "Back to studio");
+
+/**
+ * Re-renders the last opened template without wiping uploads or components.
+ *
+ * @returns {void}
+ */
+const backToStudio = () => {
+  const id = (selectedTemplateId && REG.templates[selectedTemplateId])
+    ? selectedTemplateId
+    : tmplList()[0]?.id;
+  if (!id) {
+    currentView = "studio";
+    setPromptRailVisible(false);
+    setChrome("Design studio", "studio");
+    setStudioFocus(true);
+    const scroll = resetScroll();
+    scroll.append(
+      pageHeader("Design studio", "Create a template to start generating.", backToWorkspaceBtn()),
+      h("p", { class: "empty-copy" }, "No themes yet. Use New template to create one.")
+    );
+    return;
+  }
+  resumeStudio(id);
+};
+
+/**
+ * Re-renders a template in Design studio without resetting live values.
+ *
+ * @param {string} id - Template id
+ * @returns {void}
+ */
+const resumeStudio = (id) => {
+  const t = REG.templates[id];
+  if (!t) return;
+  selectedTemplateId = id;
+  currentView = `template:${id}`;
+  pickerOpen = false;
+  closeComponentModal();
+  setPromptRailVisible(true);
+  setChrome("Design studio", "studio");
+  renderTemplateView(t);
+  refreshPromptPreview(t);
+};
+
+/**
+ * Returns a short typographic mark for a template card without a reference image.
+ *
+ * @param {object} t - Template
+ * @returns {string}
+ */
+const templateMark = (t) => {
+  if (t.category === "News") return "NEWS";
+  if (t.category === "Portrait") return "Aa";
+  const name = String(t.name || "");
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return name.slice(0, 6);
+  return parts.slice(0, 2).map((p) => p[0]).join("").toUpperCase();
+};
+
+/**
+ * Returns the fixed live-preview size. The studio canvas is always 1:1.
+ *
+ * @param {object} [_t] - Open template (unused; preview ratio is fixed)
+ * @returns {{ w: number, h: number }}
+ */
+const templateRatio = (_t) => ({ w: 1024, h: 1024 });
+
+/**
+ * Returns the live-preview size caption.
+ *
+ * @param {object} [_t] - Open template (unused; preview size is fixed)
+ * @returns {string}
+ */
+const templateSizeLabel = (_t) => "1024 × 1024 px";
+
+/**
+ * Formats a timestamp as a short relative string.
+ *
+ * @param {string|number} iso - ISO date or epoch
+ * @returns {string}
+ */
+const relativeTime = (iso) => {
+  const d = new Date(iso);
+  const s = Math.round((Date.now() - d.getTime()) / 1000);
+  if (!Number.isFinite(s) || s < 60) return "Just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} hr ago`;
+  return d.toLocaleDateString();
+};
+
+// ── Nav ──────────────────────────────────────────────────────
+function renderNav() {}
+const setPromptRailVisible = (visible) => {
+  document.querySelector(".shell")?.classList.toggle("rail-hidden", !visible);
+  $("#promptTab")?.classList.toggle("visible", visible);
+  if (!visible) {
+    setPromptDrawerOpen(false);
+    closeComponentModal();
+    expandedPromptKeys = new Set();
+    const rail = $("#railContent");
+    const badge = $("#railBadge");
+    if (rail) rail.innerHTML = `<p style="color:var(--faint);font-size:13px">Select a template to see its prompt build up as you fill in the parameters.</p>`;
+    if (badge) badge.innerHTML = "";
+  }
+};
+
+/**
+ * Opens or closes the live prompt preview drawer from the right.
+ *
+ * @param {boolean} open - Whether the drawer should be visible
+ * @returns {void}
+ */
+const setPromptDrawerOpen = (open) => {
+  promptDrawerOpen = Boolean(open);
+  $("#promptDrawer")?.classList.toggle("open", promptDrawerOpen);
+  $("#railBackdrop")?.classList.toggle("open", promptDrawerOpen);
+  $("#promptTab")?.classList.toggle("drawer-open", promptDrawerOpen);
+  $("#promptDrawer")?.setAttribute("aria-hidden", String(!promptDrawerOpen));
+  $("#promptDrawer")?.toggleAttribute("inert", !promptDrawerOpen);
+  $("#promptTab")?.setAttribute("aria-expanded", String(promptDrawerOpen));
+};
+
+function setView(view) {
+  if (view === "studio") {
+    backToStudio();
+    return;
+  }
+  setStudioFocus(false);
+  currentView = view;
+  setPromptRailVisible(false);
+  resetScroll();
+  if (view === "templates") renderHome();
+  else if (view === "components") renderComponents();
+  else if (view === "jobs") renderJobs();
+  else if (view === "newTemplate") renderTemplateEditor(null);
+}
+
+function openTemplate(id) {
+  selectedTemplateId = id;
+  liveValues = {};
+  liveComponents = [];
+  selectedPaletteId = null;
+  pickerOpen = false;
+  closeComponentModal();
+  compiled = null;
+  expandedPromptKeys = new Set();
+  currentView = `template:${id}`;
+  const t = REG.templates[id];
+  if (!t) return;
+  for (const p of t.params||[]) {
+    if (["color","select","multiselect","slider","switch"].includes(p.type)) liveValues[p.id] = defaultParamValue(p);
+  }
+  setPromptRailVisible(true);
+  setChrome("Design studio", "studio");
+  renderTemplateView(t);
+  refreshPromptPreview(t);
+}
+
+/**
+ * Renders the Themes gallery with search and card grid.
+ *
+ * @param {string} [query] - Optional name/description filter
+ * @returns {void}
+ */
+const renderHome = (query = "") => {
+  setChrome("Themes", "templates");
+  const scroll = resetScroll();
+  const q = String(query || "").trim().toLowerCase();
+  const tplItems = tmplList().filter((t) => {
+    if (!q) return true;
+    return [t.name, t.description, t.category].filter(Boolean).join(" ").toLowerCase().includes(q);
+  });
+  const search = h("input", {
+    type: "text",
+    class: "page-search",
+    placeholder: "Search themes",
+    "aria-label": "Search themes",
+    value: query || ""
+  });
+  search.addEventListener("input", (e) => renderHome(e.target.value));
+  scroll.append(
+    pageHeader("Themes", "A starting point for your next idea.", backToStudioBtn()),
+    search
+  );
+  if (!tplItems.length) {
+    scroll.append(h("p", { class: "empty-copy" }, q ? "No themes match that search." : "No themes yet. Create one."));
+  } else {
+    scroll.append(h("div", { class: "tpl-grid" },
+      tplItems.map((t) =>
+        h("div", { class: "tpl-card", onclick: () => openTemplate(t.id) },
+          h("div", { class: "tpl-thumb" },
+            t.referenceImage
+              ? h("img", { src: t.referenceImage, alt: t.name })
+              : templateMark(t)),
+          h("div", { class: "tpl-info" }, h("h3", {}, t.name))))));
+  }
+  if (query) {
+    search.focus();
+    const len = search.value.length;
+    search.setSelectionRange(len, len);
+  }
+};
+
+// ── Template view: parameters + generate ──────────────────────
+function renderTemplateView(t) {
+  const scroll = $("#mainScroll");
+  scroll.innerHTML = "";
+  scroll.className = "main-scroll studio-scroll";
+  setChrome("Design studio", "studio");
+  setStudioFocus(true, t);
+
+  const params = t.params || [];
+  const subjectParams = params.filter((p) => p.type === "image" && !isBackgroundImageParam(p));
+  const backgroundParams = params.filter(isBackgroundImageParam);
+  const colorParams = params.filter((p) => p.type !== "image");
+  const changeTpl = h("select", {
+    class: "select-btn",
+    "aria-label": "Change template",
+    onchange: (e) => openTemplate(e.target.value)
+  }, tmplList().map((item) => h("option", { value: item.id, selected: item.id === t.id }, item.name)));
+
+  const ratio = templateRatio(t);
+  const canvas = h("div", {
+    class: "preview-canvas",
+    id: "previewCanvas",
+    style: `--preview-w:${ratio.w};--preview-h:${ratio.h}`
+  }, h("span", { class: "preview-empty" }, "Preview will appear here"));
+
+  const page = h("div", { class: "studio-page", id: "studioLayout" },
+    pageHeader(
+      t.name,
+      t.description || "A new perspective, in a few simple steps.",
+      [backToWorkspaceBtn(), h("button", { class: "btn", type: "button", onclick: () => renderTemplateEditor(t) }, "Edit template")]
+    ),
+    h("div", { class: "studio-layout" },
+      h("div", { class: "studio-rail" },
+        h("section", { class: "studio-sec" },
+          studioSecHead("Your subject image", t, "subject"),
+          subjectParams.length
+            ? h("div", { class: "params-list", id: "genParams" }, subjectParams.map((p) => paramInput(p, t)))
+            : h("p", { class: "studio-sec-hint" }, "This template has no subject image."),
+          slotDropZone(t, "subject")),
+        h("section", { class: "studio-sec" },
+          studioSecHead("Your background image", t, "background"),
+          backgroundParams.length
+            ? h("div", { class: "params-list" }, backgroundParams.map((p) => paramInput(p, t)))
+            : null,
+          slotDropZone(t, "background")),
+        h("section", { class: "studio-sec" },
+          h("div", { class: "studio-sec-head" }, h("h2", {}, "Colors")),
+          colorParams.length
+            ? h("div", { class: "params-list" }, colorParams.map((p) => paramInput(p, t)))
+            : h("p", { class: "studio-sec-hint" }, "No colour settings on this template.")),
+        h("section", { class: "studio-sec" },
+          studioSecHead("Your Canvas", t, "canvas"),
+          slotDropZone(t, "canvas")),
+        h("button", { class: "btn primary gen-btn", id: "genBtn", type: "button", onclick: () => doGenerate(t) }, "Generate design"),
+        MODE === "demo" ? h("p", { class: "demo-caption" }, "Demo · preview interactions only") : null),
+      h("div", { class: "studio-preview" },
+        h("div", { class: "preview-toolbar" },
+          h("span", { class: "preview-label" }, "Preview"),
+          h("div", { class: "btn-row" },
+            changeTpl,
+            h("button", { class: "btn", type: "button", onclick: () => setPromptDrawerOpen(!promptDrawerOpen) }, "{ } Live Prompt Preview"))),
+        h("div", { class: "preview-fit" }, canvas),
+        h("div", { class: "preview-meta" },
+          h("div", { class: "preview-size" }, templateSizeLabel(t)),
+          h("div", { id: "previewNotice" }),
+          h("div", { id: "genResult", hidden: "" })))));
+
+  scroll.append(page);
+}
+
+function paramInput(p, t) {
+  const cur = liveValues[p.id];
+  const onChange = (v) => { liveValues[p.id] = v; refreshPromptPreview(t); };
+  const control = paramControl(p, cur, onChange);
+  const aiVisible = p.type!=="image";
+  return h("div",{class:"param-card"},
+    h("div",{class:"param-head"},
+      h("span",{class:`param-type-badge ${p.type}`},typeEmoji[p.type]||"·"," ",p.type),
+      h("b",{class:"param-title"},p.label),
+      aiVisible?h("span",{class:"badge orange"},"AI"):h("span",{class:"badge blue"},"File")),
+    h("div",{class:"param-fill"},
+      p.description?h("p",{class:"param-desc"},p.description):null,
+      control));
+}
+
+// Builds the input control for one param. Used by templates and components.
+function paramControl(p, cur, onChange) {
+  let control;
+  if (p.type==="image") {
+    control = imageControl(p, cur, onChange);
+  } else if (p.type==="color") {
+    const pick = h("input",{type:"color","aria-label":p.label,value:cur||p.defaultHex||"#0047AB"});
+    const hex = h("input",{type:"text",class:"color-hex",value:(cur||p.defaultHex||"#0047AB").toUpperCase()});
+    pick.addEventListener("input",()=>{hex.value=pick.value.toUpperCase();onChange(pick.value.toUpperCase());});
+    hex.addEventListener("change",()=>{ if(/^#[0-9a-f]{6}$/i.test(hex.value)){pick.value=hex.value;onChange(hex.value.toUpperCase());}else hex.value=pick.value.toUpperCase();});
+    control = h("div",{class:"color-row"},pick,hex);
+  } else if (p.type==="select") {
+    control = h("select",{"aria-label":p.label,onchange:e=>onChange(e.target.value)},
+      (p.options||[]).map(o=>h("option",{value:o.value,selected:o.value===(cur||p.defaultValue)},o.label)));
+  } else if (p.type==="multiselect") {
+    const chosen = new Set(Array.isArray(cur)?cur:[]);
+    control = h("div",{class:"chips",role:"group","aria-label":p.label},(p.options||[]).map(o=>{
+      const chip = h("button",{type:"button",class:"chip","aria-pressed":String(chosen.has(o.value)),onclick:()=>{
+        if (chosen.has(o.value)) { if (chosen.size===1) { toast("Keep at least one selected."); return; } chosen.delete(o.value); }
+        else chosen.add(o.value);
+        chip.setAttribute("aria-pressed",String(chosen.has(o.value)));
+        onChange((p.options||[]).map(x=>x.value).filter(v=>chosen.has(v)));
+      }},o.label);
+      return chip;
+    }));
+  } else if (p.type==="slider") {
+    const pv = h("span",{style:"font-family:var(--mono);font-size:12px;color:var(--muted)"},`${cur??p.defaultValue??p.min}`);
+    const range = h("input",{type:"range",min:p.min,max:p.max,step:p.step||1,value:String(cur??p.defaultValue??p.min),
+      oninput:e=>{pv.textContent=e.target.value;onChange(Number(e.target.value));}});
+    control = h("div",{},range,pv);
+  } else if (p.type==="switch") {
+    control = h("label",{style:"display:flex;align-items:center;gap:8px;cursor:pointer"},
+      h("input",{type:"checkbox",checked:Boolean(cur||p.defaultValue),onchange:e=>onChange(e.target.checked)}),
+      h("span",{},cur?"Enabled":"Disabled"));
+  } else if (p.type==="palette") {
+    const list = Array.isArray(cur)?cur:[];
+    const renderPalette = (container) => {
+      container.innerHTML="";
+      list.forEach((c,i)=>{
+        const pick=h("input",{type:"color",value:c.hex,style:"width:36px;height:30px"});
+        const name=h("input",{type:"text",value:c.name||"",placeholder:"Name",style:"flex:1"});
+        pick.addEventListener("input",()=>{list[i].hex=pick.value.toUpperCase();onChange([...list]);});
+        name.addEventListener("input",()=>{list[i].name=name.value;onChange([...list]);});
+        container.append(h("div",{style:"display:flex;gap:6px;align-items:center;margin-bottom:6px"},pick,name,
+          h("button",{class:"btn small danger",onclick:()=>{list.splice(i,1);renderPalette(container);onChange([...list]);}},"-")));
+      });
+      container.append(h("button",{class:"btn small ghost",onclick:()=>{list.push({hex:"#888888",name:""});renderPalette(container);onChange([...list]);}},"+Add colour"));
+    };
+    const wrap=h("div",{}); renderPalette(wrap); control=wrap;
+  } else {
+    const isArea = p.type==="textarea";
+    control = isArea
+      ? h("textarea",{rows:"3",oninput:e=>onChange(e.target.value)},cur||"")
+      : h("input",{type:"text",value:cur||"",oninput:e=>onChange(e.target.value)});
+  }
+  return control;
+}
+
+// ── Image upload ─────────────────────────────────────────────
+// Click to browse or drag a file onto the box. PNG, JPEG and WebP are sent
+// as they are, with no resizing or recompression, so the API gets the exact
+// original. Other formats the browser can read (GIF, BMP, AVIF) are
+// converted to lossless PNG first.
+const IMAGE_OK_TYPES = ["image/png","image/jpeg","image/webp"];
+const IMAGE_MAX_MB = 25;
+const imageMeta = new Map(); // dataURL -> { name, width, height, bytes }
+
+function imageControl(p, cur, onChange) {
+  const inp = h("input",{type:"file",accept:"image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif",class:"sr-only","aria-label":`Upload ${p.label}`});
+  const box = h("div",{class:`drop${p.fitSquare?" square-fit":""}`,tabindex:"0",role:"button","aria-label":`Upload ${p.label}. Click or drop an image.`});
+  const err = h("p",{class:"drop-err",role:"alert"});
+  let value = cur || null;
+
+  const draw = () => {
+    box.innerHTML = "";
+    box.classList.toggle("has-image", Boolean(value));
+    if (!value) {
+      box.append(h("div",{class:"drop-empty"},
+        h("span",{class:"drop-ic","aria-hidden":"true"},"⬆"),
+        h("b",{},`Upload ${p.label}`),
+        h("small",{},p.fitSquare
+          ? "Click to choose, or drag an image here. It is cropped to a square for the template card."
+          : "Click to choose, or drag an image here. PNG, JPEG or WebP, up to 25 MB.")));
+      return;
+    }
+    const meta = imageMeta.get(value);
+    box.append(
+      h("img",{src:value,alt:`${p.label} preview`}),
+      h("div",{class:"drop-bar"},
+        h("span",{class:"drop-meta"},meta?`${meta.name} · ${meta.width}×${meta.height} · ${fmtBytes(meta.bytes)}`:"Image attached"),
+        h("span",{class:"btn-row"},
+          h("button",{type:"button",class:"btn small",onclick:e=>{e.stopPropagation();inp.click();}},"Replace"),
+          h("button",{type:"button",class:"btn small danger",onclick:e=>{e.stopPropagation();value=null;inp.value="";onChange(null);draw();}},"Remove"))));
+  };
+
+  const take = async (file) => {
+    err.textContent = "";
+    if (!file) return;
+    try {
+      let { url, meta } = await readImageFile(file);
+      if (p.fitSquare) ({ url, meta } = await fitImageToSquare(url, meta.name));
+      imageMeta.set(url, meta);
+      value = url; onChange(url); draw();
+      toast(p.fitSquare ? `${p.label} attached and fitted to a square.` : `${p.label} attached.`);
+    } catch (e) { err.textContent = e.message; }
+  };
+
+  box.addEventListener("click", () => inp.click());
+  box.addEventListener("keydown", e => { if (e.key==="Enter"||e.key===" ") { e.preventDefault(); inp.click(); } });
+  box.addEventListener("dragover", e => { e.preventDefault(); box.classList.add("over"); });
+  box.addEventListener("dragleave", () => box.classList.remove("over"));
+  box.addEventListener("drop", e => { e.preventDefault(); box.classList.remove("over"); take(e.dataTransfer?.files?.[0]); });
+  inp.addEventListener("change", () => take(inp.files?.[0]));
+
+  draw();
+  return h("div",{class:"ctl-stack"},box,inp,err);
+}
+
+async function readImageFile(file) {
+  if (/heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name)) {
+    throw new Error("HEIC photos from iPhone can't be read by the browser. Export the photo as JPEG and try again.");
+  }
+  if (!file.type.startsWith("image/")) throw new Error(`"${file.name}" is not an image.`);
+  if (file.size > IMAGE_MAX_MB*1024*1024) throw new Error(`"${file.name}" is ${fmtBytes(file.size)}. The limit is ${IMAGE_MAX_MB} MB.`);
+  let url = await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(new Error("Could not read the file."));r.readAsDataURL(file);});
+  const img = await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error(`"${file.name}" could not be opened as an image.`));i.src=url;});
+  let bytes = file.size;
+  if (!IMAGE_OK_TYPES.includes(file.type)) {
+    const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext("2d").drawImage(img, 0, 0);
+    url = c.toDataURL("image/png");
+    bytes = Math.round((url.length - url.indexOf(",") - 1) * 0.75);
+  }
+  return { url, meta: { name: file.name, width: img.naturalWidth, height: img.naturalHeight, bytes } };
+}
+
+/**
+ * Center-crops an image data URL to a 1:1 square for template card headers.
+ *
+ * @param {string} dataUrl - Source image as a data URL
+ * @param {string} [name] - Original file name, used in returned meta
+ * @returns {Promise<{ url: string, meta: { name: string, width: number, height: number, bytes: number } }>}
+ */
+const fitImageToSquare = async (dataUrl, name = "reference.png") => {
+  const img = await new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = () => rej(new Error("The reference image could not be opened."));
+    i.src = dataUrl;
+  });
+  const side = Math.min(img.naturalWidth, img.naturalHeight);
+  const sx = Math.floor((img.naturalWidth - side) / 2);
+  const sy = Math.floor((img.naturalHeight - side) / 2);
+  const canvas = document.createElement("canvas");
+  canvas.width = side;
+  canvas.height = side;
+  canvas.getContext("2d").drawImage(img, sx, sy, side, side, 0, 0, side, side);
+  const url = canvas.toDataURL("image/png");
+  const bytes = Math.round((url.length - url.indexOf(",") - 1) * 0.75);
+  return { url, meta: { name, width: side, height: side, bytes } };
+};
+
+const fmtBytes = b => b >= 1048576 ? `${(b/1048576).toFixed(1)} MB` : `${Math.max(1,Math.round(b/1024))} KB`;
+
+const SLOT_LABEL = { subject: "Subject", background: "Background", canvas: "Canvas" };
+
+/**
+ * True when an image param belongs on the background tile.
+ *
+ * @param {object} p - Template param
+ * @returns {boolean}
+ */
+const isBackgroundImageParam = (p) =>
+  p?.type === "image" && /background/i.test(`${p.id || ""} ${p.label || ""}`);
+
+/**
+ * Returns stacked components in Subject → Canvas → Background order.
+ *
+ * @returns {Array<{ id: string, values: object }>}
+ */
+const componentsForCompile = () =>
+  [...liveComponents]
+    .sort((a, b) => (SLOT_ORDER[a.slot] ?? 1) - (SLOT_ORDER[b.slot] ?? 1))
+    .map(({ id, values }) => ({ id, values }));
+
+/**
+ * Rebuilds palette rows and every slot drop zone after the stack changes.
+ *
+ * @param {object} t - Open template
+ * @returns {void}
+ */
+const redrawStudioStacks = (t) => {
+  drawComponentPalette(t);
+  document.querySelectorAll(".studio-drop").forEach((el) => el._draw?.());
+};
+
+/**
+ * Renders a section title with an add-component action for one slot.
+ *
+ * @param {string} title - Visible heading
+ * @param {object} t - Open template
+ * @param {string} slot - `subject` | `canvas` | `background`
+ * @returns {HTMLElement}
+ */
+const studioSecHead = (title, t, slot) =>
+  h("div", { class: "studio-sec-head" },
+    h("h2", {}, title),
+    h("button", {
+      class: "btn small",
+      type: "button",
+      onclick: () => openComponentModal(t, slot)
+    }, "+ Add"));
+
+/**
+ * Draws the name-only component library grouped by category.
+ *
+ * @param {object|null} [t] - Open template, used for blocked/swap state
+ * @returns {void}
+ */
+const drawComponentPalette = (t = null) => {
+  const root = $("#compPaletteScroll");
+  if (!root) return;
+  root.innerHTML = "";
+  const items = compList();
+  if (!items.length) {
+    root.append(h("p", { class: "palette-empty" }, "No components yet."));
+    return;
+  }
+  const groups = {};
+  for (const c of items) (groups[c.category || "Other"] ||= []).push(c);
+  for (const [cat, list] of Object.entries(groups)) {
+    root.append(h("div", { class: "palette-cat" }, cat));
+    for (const c of list) {
+      const status = t ? pickStatus(t, c) : { kind: "ok" };
+      const blocked = status.kind === "blocked";
+      const onDesign = status.kind === "added";
+      const selected = selectedPaletteId === c.id;
+      const row = h("button", {
+        type: "button",
+        class: `palette-item${selected ? " selected" : ""}${onDesign ? " on-design" : ""}`,
+        disabled: blocked,
+        "aria-pressed": String(selected),
+        title: status.reason || c.name
+      }, c.name);
+      row.draggable = !blocked;
+      row.addEventListener("click", () => {
+        if (blocked) return;
+        selectedPaletteId = c.id;
+        drawComponentPalette(t);
+      });
+      row.addEventListener("dragstart", (e) => {
+        if (blocked) { e.preventDefault(); return; }
+        selectedPaletteId = c.id;
+        e.dataTransfer.setData("text/plain", c.id);
+        e.dataTransfer.effectAllowed = "copy";
+      });
+      root.append(row);
+    }
+  }
+};
+
+/**
+ * Drop zone for components assigned to one slot.
+ *
+ * @param {object} t - Open template
+ * @param {string} slot - `subject` | `canvas` | `background`
+ * @returns {HTMLElement}
+ */
+const slotDropZone = (t, slot) => {
+  const wrap = h("div", { class: "studio-drop", "data-slot": slot });
+  const acceptDrag = (e) => {
+    if (![...e.dataTransfer.types].includes("text/plain")) return false;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+    wrap.classList.add("over");
+    return true;
+  };
+  wrap.addEventListener("dragover", acceptDrag);
+  wrap.addEventListener("dragenter", acceptDrag);
+  wrap.addEventListener("dragleave", (e) => {
+    if (!wrap.contains(e.relatedTarget)) wrap.classList.remove("over");
+  });
+  wrap.addEventListener("drop", (e) => {
+    e.preventDefault();
+    wrap.classList.remove("over");
+    const id = e.dataTransfer.getData("text/plain") || selectedPaletteId;
+    if (!id || !REG.components?.[id]) return;
+    placeComponentOnSlot(t, id, slot);
+  });
+  const draw = () => {
+    wrap.innerHTML = "";
+    const lib = REG.components || {};
+    const items = liveComponents.filter((s) => (s.slot || "canvas") === slot);
+    if (!items.length) {
+      wrap.append(h("p", { class: "studio-drop-hint" }, `Drag a component onto ${SLOT_LABEL[slot] || slot}`));
+      return;
+    }
+    items.forEach((sel, i) => {
+      const c = lib[sel.id];
+      if (!c) return;
+      const problem = compiled?.componentProblems?.find((pr) => pr.id === c.id);
+      const bodyKids = [];
+      if (problem) bodyKids.push(h("div", { class: "notice error full", style: "margin:0" }, problem.reason));
+      for (const p of c.params || []) {
+        const controlParam = paramForControl(p, inferParamFunction(p));
+        bodyKids.push(h("div", { class: ["multiselect", "palette"].includes(controlParam.type) ? "full" : "" },
+          h("span", { class: "ctl-label" }, p.label),
+          paramControl(controlParam, sel.values[p.id], (v) => { sel.values[p.id] = v; refreshPromptPreview(t); })));
+      }
+      wrap.append(h("div", { class: "comp-item" },
+        h("div", { class: "comp-item-head" },
+          h("b", {}, c.name),
+          h("button", {
+            class: "icon-btn", type: "button", title: "Move up",
+            "aria-label": `Move ${c.name} up`, disabled: i === 0,
+            onclick: () => { moveComponentInSlot(sel, -1); redrawStudioStacks(t); refreshPromptPreview(t); }
+          }, "↑"),
+          h("button", {
+            class: "icon-btn", type: "button", title: "Move down",
+            "aria-label": `Move ${c.name} down`, disabled: i === items.length - 1,
+            onclick: () => { moveComponentInSlot(sel, 1); redrawStudioStacks(t); refreshPromptPreview(t); }
+          }, "↓"),
+          h("button", {
+            class: "icon-btn", type: "button", title: "Remove",
+            "aria-label": `Remove ${c.name}`,
+            onclick: () => {
+              liveComponents.splice(liveComponents.indexOf(sel), 1);
+              redrawStudioStacks(t);
+              refreshPromptPreview(t);
+            }
+          }, "✕")),
+        bodyKids.length ? h("div", { class: "comp-item-body" }, bodyKids) : null));
+    });
+  };
+  wrap._draw = draw;
+  draw();
+  return wrap;
+};
+
+/**
+ * Opens the add-component popup targeting one slot.
+ *
+ * @param {object} t - Template currently being edited
+ * @param {string} [slot] - Slot new components are assigned to
+ * @returns {void}
+ */
+const openComponentModal = (t, slot = "canvas") => {
+  pickerOpen = true;
+  compModalTemplate = t;
+  compModalSlot = slot || "canvas";
+  compModalMulti = false;
+  compModalSelected = new Set();
+  const root = $("#compModalRoot");
+  if (!root) return;
+  redrawComponentPicker();
+  root.classList.add("open");
+  root.removeAttribute("hidden");
+  $("#compModalMulti")?.focus();
+};
+
+/**
+ * Rebuilds the component library grid inside the open popup.
+ *
+ * @returns {void}
+ */
+const redrawComponentPicker = () => {
+  const t = compModalTemplate;
+  const body = $("#compModalBody");
+  if (!t || !body) return;
+  body.innerHTML = "";
+  body.append(componentPicker(t, (id) => onPickComponent(t, id)));
+  syncComponentModalUi();
+};
+
+/**
+ * Handles a click on a library tile: add immediately, or toggle multi-select.
+ *
+ * @param {object} t - Open template
+ * @param {string} id - Component id
+ * @returns {void}
+ */
+const onPickComponent = (t, id) => {
+  if (!compModalMulti) {
+    addComponent(t, id, { slot: compModalSlot });
+    closeComponentModal();
+    redrawStudioStacks(t);
+    return;
+  }
+  if (compModalSelected.has(id)) compModalSelected.delete(id);
+  else compModalSelected.add(id);
+  redrawComponentPicker();
+};
+
+/**
+ * Turns multi-select on or off in the add-component popup.
+ *
+ * @param {boolean} on - Whether several components can be chosen at once
+ * @returns {void}
+ */
+const setComponentMultiSelect = (on) => {
+  compModalMulti = Boolean(on);
+  if (!compModalMulti) compModalSelected = new Set();
+  redrawComponentPicker();
+};
+
+/**
+ * Updates the popup subtitle, Select multiple state, and Add selected button.
+ *
+ * @returns {void}
+ */
+const syncComponentModalUi = () => {
+  const n = compModalSelected.size;
+  const sub = $("#compModalSub");
+  const multiBtn = $("#compModalMulti");
+  const addBtn = $("#compModalAdd");
+  if (sub) {
+    sub.textContent = compModalMulti
+      ? "Click components to select them, then add them together."
+      : "Preview every component, then click one to stack it on this template.";
+  }
+  multiBtn?.setAttribute("aria-pressed", String(compModalMulti));
+  if (addBtn) {
+    addBtn.hidden = !compModalMulti;
+    addBtn.disabled = n === 0;
+    addBtn.textContent = n ? `Add selected (${n})` : "Add selected";
+  }
+};
+
+/**
+ * Adds every component currently selected in the popup.
+ *
+ * @returns {void}
+ */
+const addSelectedComponents = () => {
+  const t = compModalTemplate;
+  if (!t || !compModalSelected.size) return;
+  const names = [];
+  for (const id of [...compModalSelected]) {
+    const result = addComponent(t, id, { silent: true, slot: compModalSlot });
+    if (result?.ok) names.push(result.name);
+  }
+  refreshPromptPreview(t);
+  closeComponentModal();
+  redrawStudioStacks(t);
+  if (names.length) toast(`Added ${names.join(", ")}.`);
+};
+
+/**
+ * Closes the add-component popup.
+ *
+ * @returns {void}
+ */
+const closeComponentModal = () => {
+  pickerOpen = false;
+  compModalMulti = false;
+  compModalSelected = new Set();
+  compModalTemplate = null;
+  compModalSlot = "canvas";
+  const root = $("#compModalRoot");
+  if (!root) return;
+  root.classList.remove("open");
+  root.setAttribute("hidden", "");
+  const body = $("#compModalBody");
+  if (body) body.innerHTML = "";
+  syncComponentModalUi();
+};
+
+// Grid of every component, grouped by category. Tiles explain why a
+// component can't be added, or which one it will replace.
+function componentPicker(t, onPick) {
+  const wrap = h("div",{class:"picker"});
+  const pending = [...compModalSelected].map(id => ({ id, values: {} }));
+  const groups = {};
+  for (const c of compList()) (groups[c.category||"Other"] ||= []).push(c);
+  if (!compList().length) wrap.append(h("p",{style:"margin:0;color:var(--faint)"},"The component library is empty. Create one on the Components page."));
+  for (const [cat, items] of Object.entries(groups)) {
+    const section = h("div",{});
+    section.append(h("h4",{},cat));
+    section.append(h("div",{class:"pick-grid"},items.map(c=>{
+      const selected = compModalMulti && compModalSelected.has(c.id);
+      const status = pickStatus(t, c, pending);
+      const blocked = !selected && (status.kind==="blocked" || (compModalMulti && status.kind==="swap"));
+      return h("button",{
+        class:`pick-tile${selected?" selected":""}`,
+        disabled:blocked,
+        "aria-pressed":compModalMulti?String(selected):null,
+        title:status.reason||c.name,
+        onclick:()=>onPick(c.id)
+      },
+        selected?h("span",{class:"pick-check","aria-hidden":"true"},"✓"):null,
+        h("div",{class:"row"},h("b",{},c.name)),
+        blocked&&status.kind==="blocked"?h("small",{class:"why"},status.reason):null,
+        status.kind==="added"?h("small",{class:"swap"},status.reason):null,
+        !selected&&status.kind==="swap"?h("small",{class:"swap"},status.reason):null);
+    })));
+    wrap.append(section);
+  }
+  return wrap;
+}
+
+// Decides whether a component can be added to the current stack.
+// Returns { kind: "ok" | "swap" | "blocked", reason, replaces }.
+function pickStatus(t, c, pending = []) {
+  const existing = liveComponents.find(s=>s.id===c.id);
+  if (existing) {
+    const where = SLOT_LABEL[existing.slot] || existing.slot || "Canvas";
+    return {kind:"added",reason:`Already on ${where}.`,slot:existing.slot};
+  }
+  const lib = REG.components||{};
+  const pendingOthers = pending.filter(s=>s.id!==c.id);
+  const stack = [...liveComponents, ...pendingOthers];
+  const sameGroup = c.group && stack.find(s=>lib[s.id]?.group===c.group);
+  const others = stack.filter(s=>s!==sameGroup);
+  const { problems } = checkComponents(t, [...others, {id:c.id, values:{}}], lib);
+  const own = problems.find(pr=>pr.id===c.id);
+  if (own) return {kind:"blocked",reason:own.reason};
+  if (sameGroup) {
+    const otherName = lib[sameGroup.id]?.name || sameGroup.id;
+    return {kind:"swap",reason:`Replaces ${otherName}.`,replaces:sameGroup};
+  }
+  return {kind:"ok"};
+}
+
+/**
+ * Adds a component to a slot, or moves it if it is already on the design.
+ *
+ * @param {object} t - Open template
+ * @param {string} id - Component id
+ * @param {string} slot - Target slot
+ * @returns {void}
+ */
+const placeComponentOnSlot = (t, id, slot) => {
+  addComponent(t, id, { slot });
+  redrawStudioStacks(t);
+};
+
+function addComponent(t, id, { silent = false, slot = "canvas" } = {}) {
+  const c = REG.components?.[id]; if (!c) return { ok: false };
+  const status = pickStatus(t, c);
+  if (status.kind==="blocked") {
+    if (!silent) toast(status.reason,"error");
+    return { ok: false, reason: status.reason };
+  }
+  if (status.kind==="added") {
+    const where = SLOT_LABEL[status.slot] || status.slot || "the design";
+    if (!silent) toast(`Already on ${where}.`);
+    return { ok: false, reason: "already" };
+  }
+  const values = {};
+  for (const p of c.params||[]) values[p.id] = defaultParamValue(paramForControl(p));
+  const item = { id, values, slot: slot || "canvas" };
+  if (status.kind==="swap") {
+    const i = liveComponents.indexOf(status.replaces);
+    liveComponents.splice(i, 1, item);
+    if (!silent) toast(`${c.name} replaced ${REG.components[status.replaces.id].name}.`);
+  } else {
+    liveComponents.push(item);
+    if (!silent) toast(`Added ${c.name}.`);
+  }
+  if (!silent) refreshPromptPreview(t);
+  return { ok: true, name: c.name };
+}
+
+/**
+ * Moves a stacked component up or down within its slot.
+ *
+ * @param {{ id: string, slot?: string }} sel - Stack item to move
+ * @param {number} dir - `-1` up, `1` down
+ * @returns {void}
+ */
+const moveComponentInSlot = (sel, dir) => {
+  const slot = sel.slot || "canvas";
+  const items = liveComponents.filter((s) => (s.slot || "canvas") === slot);
+  const i = items.indexOf(sel);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= items.length) return;
+  const a = liveComponents.indexOf(items[i]);
+  const b = liveComponents.indexOf(items[j]);
+  [liveComponents[a], liveComponents[b]] = [liveComponents[b], liveComponents[a]];
+};
+
+/**
+ * Returns named rows for a compiled prompt section.
+ *
+ * @param {{ kind?: string, text?: string, items?: Array<{ id?: string, name?: string, text?: string }> }} sec - Section from the compiler
+ * @returns {Array<{ id?: string, name: string, text: string }>}
+ */
+const sectionPreviewItems = (sec) => {
+  if (Array.isArray(sec.items) && sec.items.length) {
+    return sec.items.map((it, i) => ({
+      id: it.id,
+      name: it.name || (sec.kind === "template" ? "Template" : `Item ${i + 1}`),
+      text: it.text || ""
+    }));
+  }
+  if (sec.text) {
+    const name = selectedTemplateId && REG.templates[selectedTemplateId]?.name;
+    return [{ name: name || "Template", text: sec.text }];
+  }
+  return [];
+};
+
+/**
+ * Builds a live-prompt row that shows a title and reveals the prompt on click.
+ *
+ * @param {{ key: string, title: string, text: string }} opts - Row identity, visible title, and hidden prompt
+ * @returns {HTMLElement}
+ */
+const promptDisclosure = ({ key, title, text }) => {
+  const open = expandedPromptKeys.has(key);
+  const row = h("div", { class: `prompt-item${open ? " open" : ""}` });
+  row.append(h("button", {
+    type: "button",
+    class: "prompt-item-head",
+    "aria-expanded": String(open),
+    onclick: () => {
+      const willOpen = !expandedPromptKeys.has(key);
+      if (willOpen) expandedPromptKeys.add(key);
+      else expandedPromptKeys.delete(key);
+      row.classList.toggle("open", willOpen);
+      row.querySelector(".prompt-item-head")?.setAttribute("aria-expanded", String(willOpen));
+    }
+  }, h("span", {}, title), h("span", { class: "prompt-chevron", "aria-hidden": "true" }, "▾")));
+  row.append(h("div", { class: "prompt-item-body" }, text || ""));
+  return row;
+};
+
+/**
+ * Returns an uppercase hex colour from a compiled param part.
+ *
+ * @param {{ rawValue?: unknown }} part - Compiled colour param
+ * @returns {string}
+ */
+const previewHex = (part) => {
+  const v = String(part?.rawValue || "").toUpperCase();
+  return /^#[0-9A-F]{6}$/.test(v) ? v : (v || "—");
+};
+
+// ── Live prompt preview (right drawer) ───────────────────────
+function refreshPromptPreview(t) {
+  try {
+    compiled = compilePrompt(t, liveValues, { components: componentsForCompile(), library: REG.components||{} });
+  } catch(e) {
+    $("#railContent").innerHTML=""; 
+    $("#railContent").append(h("div",{class:"notice error"},e.message));
+    return;
+  }
+  const root = $("#railContent"); root.innerHTML="";
+
+  // Status
+  const allFilled = compiled.parts.every(p => p.type!=="image" || p.hasFile);
+  root.append(h("div",{style:"display:flex;gap:8px;flex-wrap:wrap"},
+    h("span",{class:`badge ${allFilled?"green":"yellow"}`},allFilled?"Ready to generate":"Missing inputs"),
+    h("span",{class:"badge grey"},`${compiled.parts.length} params`),
+    h("span",{class:`badge ${compiled.components.length?"orange":"grey"}`},`${compiled.components.length} components`)));
+
+  // Param resolution rows
+  for (const part of compiled.parts) {
+    const seg = h("div",{class:"segment"});
+    if (part.type==="image") {
+      seg.append(h("div",{class:"seg-head image"},`🖼 ${part.index?`Image ${part.index}: `:""}${part.label}`,h("span",{class:"pill"},part.hasFile?"✓ Attached":"⚠ No file")));
+      const fid = {exact:"Used exactly as uploaded. No distortion or redrawing.",source:"Source material. May be cropped and recoloured.",style:"Style reference only."}[part.fidelity]||"";
+      seg.append(h("div",{class:"seg-body",style:"display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted)"},
+        part.hasFile&&liveValues[part.paramId]?h("img",{src:liveValues[part.paramId],alt:"",style:"width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex:none"}):null,
+        h("div",{},h("div",{style:"color:var(--ink)"},fid),part.resolvedPhrase)));
+    } else {
+      const isSet = part.rawValue!=null&&part.rawValue!=="";
+      seg.append(h("div",{class:`seg-head ${isSet?"resolved":"placeholder"}`},part.label,h("span",{class:"pill"},isSet?"✓ Set":"⚠ Default")));
+      if (part.type==="color") {
+        const hex = previewHex(part);
+        seg.append(h("div",{class:"seg-body",style:"display:flex;align-items:center;gap:8px"},
+          h("span",{style:`width:22px;height:22px;border-radius:5px;border:1px solid var(--line);background:${hex!=="—"?hex:"#888"};flex:none`,"aria-hidden":"true"}),
+          h("span",{class:"color-hex-preview"},hex)));
+      } else {
+        seg.append(h("div",{class:"seg-body"},part.resolvedPhrase));
+      }
+    }
+    root.append(seg);
+  }
+
+  if (compiled.warnings.length) {
+    root.append(h("div",{class:"notice warn"},h("b",{},"Warnings:"),h("ul",{class:"errs"},compiled.warnings.map(w=>h("li",{},w)))));
+  }
+
+  root.append(h("div",{style:"display:flex;align-items:center;justify-content:space-between;margin-top:4px"},
+    h("b",{style:"font-size:13px"},"Master prompt, by section"),
+    h("button",{class:"btn small ghost",onclick:()=>copyText(compiled.prompt)},"Copy full prompt")));
+  for (const sec of compiled.sections||[]) {
+    const items = sectionPreviewItems(sec);
+    const body = h("div",{class:"seg-items"});
+    items.forEach((it, i) => {
+      body.append(promptDisclosure({
+        key: `${sec.kind}:${it.id || it.name || i}`,
+        title: it.name,
+        text: it.text
+      }));
+    });
+    root.append(h("div",{class:"segment"},
+      h("div",{class:`seg-head sec-${sec.kind}`},sec.title,
+        items.length?h("span",{class:"pill"},`${items.length} ${items.length===1?"item":"items"}`):null),
+      body));
+  }
+
+  $("#railBadge").innerHTML = `<span class="badge grey">${compiled.prompt.length} chars</span>`;
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast("Prompt copied to clipboard."); }
+  catch { toast("Could not copy.", "error"); }
+}
+
+// ── Generate ─────────────────────────────────────────────────
+async function doGenerate(t) {
+  const btn = $("#genBtn"); if(!btn) return;
+  if (compiled?.missingImages?.length) {
+    toast(`Upload ${compiled.missingImages.join(" and ")} first.`,"error");
+    document.querySelector(".drop:not(.has-image)")?.scrollIntoView({behavior:"smooth",block:"center"});
+    return;
+  }
+  btn.disabled=true; btn.textContent="Generating…";
+  const canvas = $("#previewCanvas");
+  const notice = $("#previewNotice");
+  if (notice) notice.innerHTML="";
+  if (canvas) {
+    canvas.innerHTML="";
+    canvas.append(h("div",{class:"preview-busy"},h("span",{class:"spinner"}),h("span",{},"Building your art")));
+  }
+
+  try {
+    let job;
+    if (MODE==="server") {
+      const r = await fetch("api/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({templateId:t.id,values:liveValues,components:componentsForCompile()})});
+      job = await r.json();
+      if (!r.ok) throw new Error(job.error||"Generation failed.");
+    } else {
+      await new Promise(r=>setTimeout(r,900));
+      job = {id:"demo_"+Date.now(),status:"done",templateId:t.id,templateName:t.name,prompt:compiled?.prompt||"",
+        components:(compiled?.components||[]).map(c=>({id:c.id,name:c.name,scope:c.scope})),
+        warnings:compiled?.warnings||[],result:{imageUrl:null,cached:false,size:t.apiSize,exportSize:t.export}};
+    }
+    renderJobCard(job, canvas);
+    if (job.status!=="done") pollJob(job.id, canvas);
+    if (MODE==="server") { const j=await tryJson("api/jobs?limit=50"); if(j) REG._jobs=j; }
+    else { REG._jobs=[{...job,createdAt:new Date().toISOString(),size:t.apiSize},...(REG._jobs||[])]; }
+  } catch(e) {
+    if (canvas) { canvas.innerHTML=""; canvas.append(h("span",{class:"preview-empty"},"Preview will appear here")); }
+    if (notice) { notice.innerHTML=""; notice.append(h("div",{class:"notice error"},e.message)); }
+    else toast(e.message,"error");
+  } finally {
+    btn.disabled=false; btn.textContent="Generate design";
+  }
+}
+
+function renderJobCard(job, container) {
+  const canvas = $("#previewCanvas") || container;
+  const notice = $("#previewNotice");
+  const done = job.status==="done", failed = job.status==="failed";
+  const imgUrl = job.result?.imageUrl;
+  if (canvas) {
+    canvas.innerHTML="";
+    if (done && imgUrl) {
+      canvas.append(h("img",{src:imgUrl,alt:"Generated image"}));
+    } else if (failed) {
+      canvas.append(h("span",{class:"preview-empty"},job.error||"Generation failed."));
+    } else {
+      canvas.append(h("div",{class:"preview-busy"},h("span",{class:"spinner"}),h("span",{},"Building your art")));
+    }
+  }
+  if (notice) {
+    notice.innerHTML="";
+    if (job.error) notice.append(h("div",{class:"notice error"},job.error));
+    if (job.warnings?.length) notice.append(h("div",{class:"notice warn"},h("b",{},"Warnings:"),h("ul",{class:"errs"},job.warnings.map(w=>h("li",{},w)))));
+    if (done && imgUrl) {
+      notice.append(h("div",{class:"preview-actions"},
+        h("a",{href:imgUrl,download:"palette-output.png",class:"btn small primary"},"Download"),
+        job.result?.cached?h("span",{class:"badge green"},"From cache"):null));
+    }
+    if (done && !imgUrl && MODE==="demo") {
+      notice.append(h("div",{class:"notice warn"},"Demo mode: in a live environment the generated image would appear here."));
+    }
+  }
+}
+
+function pollJob(jobId, container) {
+  clearInterval(pollers[jobId]);
+  pollers[jobId] = setInterval(async ()=>{
+    const job = MODE==="server"?await tryJson(`api/jobs/${jobId}`):null;
+    if (!job||job.status==="done"||job.status==="failed") { clearInterval(pollers[jobId]); if(job) renderJobCard(job, container); return; }
+    renderJobCard(job, container);
+  }, 1500);
+}
+
+/**
+ * Collects unique `{{placeholder}}` ids from a prompt string.
+ *
+ * @param {string} text - Prompt text that may contain `{{paramId}}` tokens
+ * @returns {string[]} Unique placeholder ids in first-seen order
+ */
+const promptPlaceholders = (text) => {
+  const seen = new Set();
+  const out = [];
+  for (const m of String(text || "").matchAll(/\{\{([a-zA-Z0-9_]+)\}\}/g)) {
+    if (seen.has(m[1])) continue;
+    seen.add(m[1]);
+    out.push(m[1]);
+  }
+  return out;
+};
+
+/**
+ * Turns a param id into a readable label.
+ *
+ * @param {string} id - CamelCase or snake_case param id
+ * @returns {string} Human-readable label
+ */
+const labelFromParamId = (id) => String(id || "")
+  .replace(/_/g, " ")
+  .replace(/([a-z])([A-Z])/g, "$1 $2")
+  .replace(/^\w/, (c) => c.toUpperCase())
+  .trim();
+
+const PARAM_FUNCTIONS = [
+  { id: "color", label: "Colour selection" },
+  { id: "select", label: "Dropdown" },
+  { id: "multiselect", label: "Multi-select" },
+  { id: "slider", label: "Number slider" },
+  { id: "switch", label: "Switch" },
+  { id: "text", label: "Text" },
+  { id: "textarea", label: "Long text" },
+  { id: "palette", label: "Colour palette" }
+];
+
+/**
+ * Returns palette groups: built-in categories plus any custom component groups.
+ *
+ * @returns {string[]}
+ */
+const paletteGroups = () => {
+  const set = new Set(COMPONENT_CATEGORIES);
+  for (const c of compList()) if (c.category) set.add(c.category);
+  return [...set];
+};
+
+/**
+ * Infers the studio control type from a param id, label, or explicit type.
+ *
+ * @param {object} p - Component param
+ * @returns {string} One of PARAM_FUNCTIONS ids
+ */
+const inferParamFunction = (p) => {
+  if (p?.type && PARAM_FUNCTIONS.some((f) => f.id === p.type)) return p.type;
+  const key = `${p?.id || ""} ${p?.label || ""}`.toLowerCase();
+  if (/colou?r|hex|tone|tint|duotone|overlay|wash/.test(key)) return "color";
+  if (/palette|swatch/.test(key)) return "palette";
+  if (/amount|opacity|strength|grain|size|scale|count/.test(key)) return "slider";
+  if (/\b(on|off|enable|enabled|toggle)\b/.test(key)) return "switch";
+  if (/style|look|mode|contrast|option/.test(key)) return "select";
+  return "text";
+};
+
+const PARAM_DEF_KEYS = new Set([
+  "id", "label", "type", "defaultValue", "defaultHex", "options", "min", "max", "step",
+  "optional", "description", "unit", "bands", "onPrompt", "offPrompt", "configPath", "fidelity", "order"
+]);
+
+/**
+ * Reads a value stored under the param's label key, if that key is not a schema field.
+ *
+ * @param {object} p - Component param
+ * @returns {*} Stray value or undefined
+ */
+const strayParamValue = (p) => {
+  if (!p?.label || PARAM_DEF_KEYS.has(p.label)) return undefined;
+  if (!Object.prototype.hasOwnProperty.call(p, p.label)) return undefined;
+  return p[p.label];
+};
+
+/**
+ * Returns the default/sample value stored on a param definition.
+ *
+ * @param {object} p - Component param
+ * @returns {*}
+ */
+const paramStoredValue = (p) => {
+  if (p?.type === "color") return p.defaultHex ?? p.defaultValue ?? strayParamValue(p) ?? "";
+  if (p?.defaultValue !== undefined && p.defaultValue !== null && p.defaultValue !== "") return p.defaultValue;
+  const stray = strayParamValue(p);
+  if (stray !== undefined && stray !== "") return stray;
+  return defaultParamValue(p);
+};
+
+/**
+ * Writes a sample value onto a param as defaultValue/defaultHex and drops a stray label-named key.
+ *
+ * @param {object} p - Component param
+ * @param {*} v - Value from Try it or the Parameters form
+ * @returns {void}
+ */
+const setParamStoredValue = (p, v) => {
+  if (p.type === "color") p.defaultHex = v;
+  else p.defaultValue = v;
+  if (p.label && !PARAM_DEF_KEYS.has(p.label) && Object.prototype.hasOwnProperty.call(p, p.label)) {
+    delete p[p.label];
+  }
+};
+
+/**
+ * Moves label-named extra keys onto defaultValue/defaultHex.
+ *
+ * @param {object} def - Component definition
+ * @returns {void}
+ */
+const migrateStrayParamValues = (def) => {
+  for (const p of def?.params || []) {
+    const stray = strayParamValue(p);
+    if (stray === undefined) continue;
+    delete p[p.label];
+    if (p.type === "color") {
+      if (p.defaultHex == null || p.defaultHex === "") p.defaultHex = stray;
+    } else if (p.defaultValue == null || p.defaultValue === "") {
+      p.defaultValue = stray;
+    }
+  }
+};
+
+/**
+ * Returns a copy of a param shaped for the chosen control type.
+ *
+ * @param {object} p - Existing param
+ * @param {string} fn - Target PARAM_FUNCTIONS id
+ * @returns {object}
+ */
+const applyParamFunction = (p, fn) => {
+  const type = PARAM_FUNCTIONS.some((f) => f.id === fn) ? fn : inferParamFunction(p);
+  const next = { id: p.id, label: p.label || labelFromParamId(p.id), type };
+  const seeded = p.defaultValue ?? strayParamValue(p);
+  if (type === "color") next.defaultHex = p.defaultHex || seeded || "#0047AB";
+  else if (type === "select" || type === "multiselect") {
+    next.options = Array.isArray(p.options) && p.options.length
+      ? p.options
+      : [
+          { value: "option_a", label: "Option A", prompt: "option A" },
+          { value: "option_b", label: "Option B", prompt: "option B" }
+        ];
+    next.defaultValue = seeded ?? next.options[0].value;
+    if (type === "multiselect" && !Array.isArray(next.defaultValue)) {
+      next.defaultValue = [next.options[0].value];
+    }
+  } else if (type === "slider") {
+    next.min = p.min ?? 1;
+    next.max = p.max ?? 10;
+    next.step = p.step ?? 1;
+    next.defaultValue = seeded ?? 5;
+  } else if (type === "switch") {
+    next.defaultValue = Boolean(seeded);
+  } else if (type === "palette") {
+    next.defaultValue = Array.isArray(seeded) ? seeded : (Array.isArray(p.defaultValue) ? p.defaultValue : []);
+  } else {
+    next.defaultValue = seeded ?? "";
+  }
+  return next;
+};
+
+/**
+ * Formats a stored param value for a text field.
+ *
+ * @param {*} v - Stored value
+ * @returns {string}
+ */
+const formatParamValue = (v) => {
+  if (v == null) return "";
+  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+  try { return JSON.stringify(v); } catch { return ""; }
+};
+
+/**
+ * Parses a Value field string into the type the param expects.
+ *
+ * @param {object} p - Component param
+ * @param {string} raw - Input text
+ * @returns {*}
+ */
+const parseParamValue = (p, raw) => {
+  const text = String(raw ?? "");
+  if (p.type === "slider") {
+    const n = Number(text);
+    return Number.isFinite(n) ? n : text;
+  }
+  if (p.type === "switch") return /^(true|1|yes|on|enabled)$/i.test(text);
+  if (p.type === "multiselect" || p.type === "palette") {
+    try { return JSON.parse(text); } catch { return text; }
+  }
+  return text;
+};
+
+/**
+ * Param used to render a studio/editor control, after function override or inference.
+ *
+ * @param {object} p - Component param
+ * @param {string} [fn] - Optional function override
+ * @returns {object}
+ */
+const paramForControl = (p, fn) => {
+  const type = fn || inferParamFunction(p);
+  return type === p.type ? p : applyParamFunction(p, type);
+};
+
+/**
+ * Placeholder ids used in a component prompt.
+ *
+ * @param {string} prompt - Component prompt text
+ * @returns {string[]}
+ */
+const promptParamIds = (prompt) => {
+  const ids = [];
+  const seen = new Set();
+  const add = (id) => { if (!seen.has(id)) { seen.add(id); ids.push(id); } };
+  for (const m of String(prompt || "").matchAll(/\{\{([a-zA-Z][a-zA-Z0-9_]*)\}\}/g)) add(m[1]);
+  for (const m of String(prompt || "").matchAll(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g)) add(m[1]);
+  return ids;
+};
+
+/**
+ * Adds missing params inferred from {{placeholders}} in the prompt.
+ *
+ * @param {object} def - Component definition
+ * @returns {boolean} Whether params were added
+ */
+const ensureParamsForPrompt = (def) => {
+  if (!def || typeof def !== "object") return false;
+  const params = Array.isArray(def.params) ? def.params : (def.params = []);
+  let added = false;
+  for (const id of promptParamIds(def.prompt)) {
+    if (params.some((p) => p.id === id)) continue;
+    const label = labelFromParamId(id);
+    params.push(applyParamFunction({ id, label }, inferParamFunction({ id, label })));
+    added = true;
+  }
+  return added;
+};
+
+/**
+ * Builds a short extras line for one analyzed parameter.
+ *
+ * @param {object} p - Template param definition
+ * @returns {string} Extra detail shown under the param name
+ */
+const paramQuickRefDetail = (p) => {
+  const bits = [];
+  if (p.label && p.label !== p.id) bits.push(p.label);
+  if (p.type === "color" && p.defaultHex) bits.push(`default ${p.defaultHex}`);
+  if (p.type === "image" && p.fidelity) bits.push(`fidelity ${p.fidelity}`);
+  if ((p.type === "select" || p.type === "multiselect") && Array.isArray(p.options)) {
+    bits.push(p.options.map((o) => o.label || o.value).filter(Boolean).join(", ") || `${p.options.length} options`);
+  }
+  if (p.type === "slider") bits.push(`${p.min}–${p.max}`);
+  if (p.optional) bits.push("optional");
+  return bits.join(" · ");
+};
+
+/**
+ * Renders Quick reference rows from the JSON currently in the editor.
+ *
+ * @param {string} raw - Raw textarea contents
+ * @param {HTMLElement} target - Container to fill
+ * @returns {void}
+ */
+const renderParamQuickReference = (raw, target) => {
+  target.innerHTML = "";
+  const text = String(raw || "").trim();
+  if (!text) {
+    target.append(h("p",{style:"color:var(--faint);margin:0;font-size:13px"},
+      "Paste your template JSON. Parameters from that prompt will appear here."));
+    return;
+  }
+  let def;
+  try { def = JSON.parse(text); }
+  catch {
+    target.append(h("p",{style:"color:var(--faint);margin:0;font-size:13px"},
+      "JSON is not valid yet. Parameters will appear once it parses."));
+    return;
+  }
+  if (!def || typeof def !== "object" || Array.isArray(def)) {
+    target.append(h("p",{style:"color:var(--faint);margin:0;font-size:13px"},
+      "The JSON must be a template object."));
+    return;
+  }
+  const params = Array.isArray(def.params) ? def.params : [];
+  const placeholders = promptPlaceholders(def.systemPrompt);
+  const paramIds = new Set(params.map((p) => p && p.id).filter(Boolean));
+  const missing = placeholders.filter((id) => !paramIds.has(id));
+  const unused = params.filter((p) => p && p.id && !placeholders.includes(p.id));
+
+  if (!params.length && !placeholders.length) {
+    target.append(h("p",{style:"color:var(--faint);margin:0;font-size:13px"},
+      "No parameters found. Add a params array, or use {{paramId}} in systemPrompt."));
+    return;
+  }
+
+  const headBits = [];
+  if (def.name) headBits.push(def.name);
+  if (def.id) headBits.push(def.id);
+  if (headBits.length) {
+    target.append(h("p",{style:"font-size:13px;margin:0 0 10px;color:var(--muted)"},headBits.join(" · ")));
+  }
+
+  const rows = [];
+  for (const p of params) {
+    if (!p || typeof p !== "object") continue;
+    rows.push(h("div",{class:"qref-row"},
+      h("span",{class:`param-type-badge ${p.type||""}`},typeEmoji[p.type]||"·"," ",p.type||"unknown"),
+      h("div",{},
+        h("b",{},p.id || "(missing id)"),
+        paramQuickRefDetail(p)?h("small",{},paramQuickRefDetail(p)):null)));
+  }
+  for (const id of missing) {
+    rows.push(h("div",{class:"qref-row"},
+      h("span",{class:"param-type-badge"},"{{ }}"),
+      h("div",{},
+        h("b",{},id),
+        h("small",{},`Used in the prompt as {{${id}}} (${labelFromParamId(id)}). Add a matching params entry.`))));
+  }
+  target.append(h("div",{class:"qref-list"},rows));
+
+  if (unused.length) {
+    target.append(h("p",{style:"font-size:12px;color:var(--muted);margin:10px 0 0"},
+      "Defined but not used in systemPrompt: ", unused.map((p) => p.id).join(", "), "."));
+  }
+};
+
+// ── Template editor ──────────────────────────────────────────
+function renderTemplateEditor(t) {
+  currentView = t?"edit:"+t.id:"newTemplate";
+  if (t) selectedTemplateId = t.id;
+  setStudioFocus(false);
+  setPromptRailVisible(false);
+  const isNew = !t;
+  const starter = isNew?{}:JSON.parse(JSON.stringify(t));
+  let referenceImage = starter.referenceImage || null;
+  delete starter.referenceImage;
+  delete starter.updatedAt;
+  setChrome(isNew ? "New template" : "Edit template", isNew ? "newTemplate" : "studio");
+  const scroll = resetScroll();
+  const errBox = h("div",{});
+  const quickBody = h("div",{class:"card-body"});
+  let armed=false;
+  const delBtn = t?h("button",{class:"btn danger",onclick:async()=>{
+    if(!armed){armed=true;delBtn.textContent="Click again to delete";return;}
+    await deleteTemplate(t.id); toast(`Deleted ${t.name}.`); setView("templates");
+  }},"Delete"):null;
+
+  const initialJson = isNew ? "" : JSON.stringify(starter,null,2);
+  const ta = h("textarea",{class:"code",spellcheck:"false","aria-label":"Template definition JSON",placeholder:"Paste your template JSON here."},initialJson);
+  const refreshQuick = () => renderParamQuickReference(ta.value, quickBody);
+  ta.addEventListener("input", refreshQuick);
+
+  const save = async()=>{
+    errBox.innerHTML="";
+    let def;
+    try {def=JSON.parse(ta.value);}catch(e){errBox.append(h("div",{class:"notice error"},`Invalid JSON: ${e.message}`));return;}
+    if(isNew&&REG.templates[def.id]){def.id=def.id+"_copy";}
+    if(referenceImage) def.referenceImage=referenceImage;
+    else delete def.referenceImage;
+    const errors=validateTemplate(def);
+    if(errors.length){errBox.append(h("div",{class:"notice error"},h("ul",{class:"errs"},errors.map(e=>h("li",{},e)))));return;}
+    const saved=await storeTemplate(def);
+    if(!saved){errBox.append(h("div",{class:"notice error"},"Could not save."));return;}
+    toast(`Saved "${saved.name}" v${saved.version}.`);
+    openTemplate(saved.id);
+  };
+  const saveBtn = h("button",{class:"btn primary",onclick:save},isNew?"Create template":"Save template");
+
+  scroll.append(
+    pageHeader(
+      isNew?"New template":`Edit: ${t.name}`,
+      isNew?"Paste your own template JSON. The editor starts empty.":"Press Save to keep changes. The version goes up when the prompt or params change.",
+      [backToStudioBtn(), saveBtn, delBtn]
+    ),
+    h("div",{class:"card",style:"margin-bottom:16px"},
+      h("div",{class:"card-head"},h("h2",{},"Reference image")),
+      h("div",{class:"card-body"},
+        h("p",{style:"font-size:13px;color:var(--muted);margin:0 0 12px"},
+          "Upload one reference image for this template. It appears on the template card and stays with this template only."),
+        imageControl({label:"Reference image",fitSquare:true}, referenceImage, (url)=>{ referenceImage = url || null; }))),
+    h("div",{class:"card"},
+      h("div",{class:"card-head"},
+        h("h2",{},"Template definition (JSON)"),
+        h("button",{class:"btn small ghost",onclick:()=>{ta.value=isNew?"":JSON.stringify(starter,null,2);refreshQuick();}},isNew?"Clear":"Reset")),
+      h("div",{class:"card-body"},
+        h("p",{style:"font-size:13px;color:var(--muted);margin:0 0 12px"},
+          isNew
+            ? "Paste the full template JSON. Quick reference below updates from the params and {{placeholders}} in your prompt."
+            : ["The ",h("code",{style:"background:var(--surface2);padding:1px 5px;border-radius:4px"},"systemPrompt")," field is the master prompt. Every {{paramId}} must have a matching entry in params."]),
+        ta, errBox,
+        h("div",{class:"btn-row",style:"margin-top:12px"},
+          h("button",{class:"btn primary",onclick:save},isNew?"Create template":"Save template"),
+          isNew?null:h("button",{class:"btn",onclick:async()=>{
+            let def; try{def=JSON.parse(ta.value);}catch(e){toast("Invalid JSON","error");return;}
+            def.id=def.id+"_copy"; def.name=def.name+" (copy)";
+            if(referenceImage) def.referenceImage=referenceImage;
+            const s=await storeTemplate(def); if(s){toast(`Duplicated as "${s.name}".`);openTemplate(s.id);}
+          }},"Duplicate as new")),
+        h("p",{style:"font-size:12px;color:var(--muted);margin:10px 0 0"},
+          MODE==="server"?`Saves to library/templates/${isNew?"<id>":t.id}.json on the server.`:"Demo mode: themes are saved in this browser only."))),
+    h("div",{class:"card",style:"margin-top:16px"},
+      h("div",{class:"card-head"},h("h2",{},"Quick reference"),h("span",{style:"font-size:12px;color:var(--muted)"},"From your JSON")),
+      quickBody));
+  refreshQuick();
+}
+
+async function storeTemplate(def) {
+  if (MODE==="server") {
+    const r = await fetch(`api/templates/${encodeURIComponent(def.id)}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(def)});
+    const data=await r.json();
+    if(!r.ok){toast(data.error||"Save failed.","error");return null;}
+    REG.templates[data.template.id]=data.template;
+    renderNav();
+    return data.template;
+  }
+  const existing=REG.templates[def.id];
+  const changed=!existing||JSON.stringify([existing.systemPrompt,existing.params])!==JSON.stringify([def.systemPrompt,def.params]);
+  const saved={...def,version:existing?(existing.version||1)+(changed?1:0):1};
+  REG.templates[def.id]=saved;
+  renderNav();
+  return saved;
+}
+
+async function deleteTemplate(id) {
+  if (MODE==="server") {
+    const r=await fetch(`api/templates/${encodeURIComponent(id)}`,{method:"DELETE"});
+    if(!r.ok){toast("Could not delete.","error");return;}
+  }
+  delete REG.templates[id];
+  renderNav();
+}
+
+// ── Components library ───────────────────────────────────────
+function renderComponents() {
+  setChrome("Components", "components");
+  const scroll = resetScroll();
+  scroll.append(
+    pageHeader(
+      "Components",
+      "Master prompt blocks. Stack them on any template to restyle it or add elements.",
+      [backToStudioBtn(), h("button",{class:"btn primary",onclick:()=>renderComponentEditor(null)},"＋ New component")]
+    ),
+    h("div",{class:"notice ok",style:"margin:0 0 18px;color:var(--ink)"},
+      h("b",{},"How components work. "),
+      "Each component is a prompt with its own controls. ",
+      h("span",{class:"scope theme"},"Theme")," components change the whole image and override the template where they clash. ",
+      h("span",{class:"scope element"},"Element")," components add something to the composition. ",
+      h("span",{class:"scope rule"},"Rule")," components add restrictions. Components in the same group replace each other.")
+  );
+  const groups={};
+  for (const c of compList()) (groups[c.category||"Other"]||=[]).push(c);
+  for (const [cat,items] of Object.entries(groups)) {
+    scroll.append(h("h3",{style:"font-size:13px;font-weight:600;color:var(--muted);margin:0 0 10px"},cat));
+    scroll.append(h("div",{class:"frag-grid"},items.map(c=>{
+      let armed=false;
+      const del = h("button",{class:"btn small danger",onclick:async()=>{
+        if(!armed){armed=true;del.textContent="Click again";return;}
+        if(await deleteComponent(c.id)){toast(`Deleted ${c.name}.`);renderComponents();}
+      }},"Delete");
+      return h("div",{class:"frag-card"},
+        h("div",{style:"display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"},h("h4",{style:"margin:0"},c.name),scopeBadge(c.scope)),
+        h("p",{class:"desc"},c.description||""),
+        h("div",{class:"meta"},
+          h("span",{class:"badge grey"},`${(c.params||[]).length} controls`),
+          c.group?h("span",{class:"badge blue"},`group: ${c.group.replace(/_/g," ")}`):null,
+          h("span",{class:"badge grey"},`v${c.version||1}`)),
+        h("pre",{},c.prompt),
+        h("div",{style:"display:flex;gap:6px;margin-top:10px"},
+          h("button",{class:"btn small",onclick:()=>renderComponentEditor(c)},"Edit"),
+          del));
+    })));
+    scroll.append(h("div",{style:"margin-bottom:20px"}));
+  }
+  if (!compList().length) scroll.append(h("p",{style:"color:var(--faint)"},"No components yet."));
+}
+
+// JSON editor with a live "try it" panel: the controls render from the
+// JSON as you type, and the compiled prompt block updates underneath.
+function renderComponentEditor(comp) {
+  const isNew=!comp;
+  currentView = isNew?"newComponent":"editComponent:"+comp.id;
+  setStudioFocus(false);
+  const start = isNew?starterComponent():JSON.parse(JSON.stringify(comp));
+  delete start.updatedAt;
+  setChrome(isNew ? "New component" : "Edit component", "components");
+  const scroll = resetScroll();
+
+  const errBox = h("div",{});
+  const tryBox = h("div",{});
+  const placementBox = h("div",{});
+  const paramsBox = h("div",{});
+  const ta = h("textarea",{class:"code",spellcheck:"false","aria-label":"Component definition JSON",style:"min-height:420px"},JSON.stringify(start,null,2));
+  let tryValues = {};
+  let addingGroup = false;
+  let timer;
+
+  const parseDef = () => {
+    try { return JSON.parse(ta.value); }
+    catch { return null; }
+  };
+
+  /**
+   * Writes a Try-it value into the JSON definition without remounting the form.
+   *
+   * @param {object} p - Param whose value changed
+   * @param {*} v - New value
+   * @returns {void}
+   */
+  const persistTryValue = (p, v) => {
+    tryValues[p.id] = v;
+    const live = parseDef();
+    if (!live) return;
+    migrateStrayParamValues(live);
+    const target = (live.params || []).find((x) => x.id === p.id);
+    if (!target) return;
+    setParamStoredValue(target, v);
+    ta.value = JSON.stringify(live, null, 2);
+    const field = paramsBox.querySelector(`[data-param-value="${CSS.escape(p.id)}"]`);
+    if (field && field !== document.activeElement) field.value = formatParamValue(v);
+  };
+
+  /**
+   * Writes a component definition back to the JSON editor and refreshes the forms.
+   *
+   * @param {object} def - Component definition
+   * @returns {void}
+   */
+  const writeDef = (def) => {
+    migrateStrayParamValues(def);
+    for (const p of def.params || []) {
+      if (tryValues[p.id] !== undefined) setParamStoredValue(p, tryValues[p.id]);
+    }
+    ta.value = JSON.stringify(def, null, 2);
+    drawTry();
+    drawForms();
+  };
+
+  const drawTry = () => {
+    tryBox.innerHTML=""; errBox.innerHTML="";
+    let def; try { def=JSON.parse(ta.value); } catch(e) { errBox.append(h("div",{class:"notice error"},`Invalid JSON: ${e.message}`)); return; }
+    migrateStrayParamValues(def);
+    const errors = validateComponent(def);
+    if (errors.length) errBox.append(h("div",{class:"notice error"},h("ul",{class:"errs"},errors.map(e=>h("li",{},e)))));
+    for (const p of def.params||[]) {
+      const controlParam = paramForControl(p, inferParamFunction(p));
+      if (tryValues[p.id]===undefined) tryValues[p.id]=paramStoredValue(controlParam) ?? defaultParamValue(controlParam);
+    }
+    const out = h("pre",{class:"comp-preview"});
+    const redraw = () => {
+      const c = compileComponent(def, tryValues);
+      out.textContent = [c.text, c.overrideNote].filter(Boolean).join(" ") + (c.rules.length?`\n\nRules:\n${c.rules.map(r=>"- "+r).join("\n")}`:"");
+    };
+    redraw();
+    tryBox.append(
+      h("div",{style:"display:flex;gap:8px;align-items:center;margin-bottom:12px"},def.scope?scopeBadge(def.scope):null,h("b",{},def.name||"Untitled")),
+      (def.params||[]).length
+        ? h("div",{style:"display:flex;flex-direction:column;gap:12px;margin-bottom:14px"},def.params.map(p=>{
+            const fn = inferParamFunction(p);
+            const controlParam = paramForControl(p, fn);
+            return h("div",{},
+              h("span",{style:"display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px"},p.label||p.id),
+              paramControl(controlParam, tryValues[p.id], v=>{persistTryValue(p, v);redraw();}));
+          }))
+        : h("p",{style:"font-size:12px;color:var(--faint)"},"No controls yet. Add parameters or write {{placeholders}} in the prompt."),
+      h("span",{style:"display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px"},"Prompt block this component adds"),
+      out);
+  };
+
+  /**
+   * Draws the group picker and parameter-functionality forms from the JSON.
+   *
+   * @returns {void}
+   */
+  const drawForms = () => {
+    placementBox.innerHTML = "";
+    paramsBox.innerHTML = "";
+    const def = parseDef();
+    if (!def) {
+      placementBox.append(h("p",{class:"comp-form-hint"},"Fix the JSON to edit group and parameters."));
+      return;
+    }
+
+    const groups = paletteGroups();
+    const current = def.category || "";
+    if (current && !groups.includes(current)) groups.push(current);
+    const groupSelect = h("select",{"aria-label":"Component group",onchange:(e)=>{
+      if (e.target.value === "__new__") { addingGroup = true; drawForms(); return; }
+      addingGroup = false;
+      def.category = e.target.value;
+      writeDef(def);
+    }},
+      h("option",{value:"",selected:!addingGroup && !current},"Select a group"),
+      ...groups.map((g)=>h("option",{value:g,selected:!addingGroup && g===current},g)),
+      h("option",{value:"__new__",selected:addingGroup},"＋ Add new group")
+    );
+    placementBox.append(
+      h("p",{class:"comp-form-hint"},"Choose where this component appears in the studio library, or create a new group."),
+      h("div",{class:"comp-form-row"},h("label",{},"Group"),groupSelect)
+    );
+    if (addingGroup) {
+      const inp = h("input",{type:"text",value:"",placeholder:"e.g. Lighting","aria-label":"New group name"});
+      inp.addEventListener("change",()=>{
+        const name = inp.value.trim();
+        if (!name) return;
+        addingGroup = false;
+        def.category = name;
+        writeDef(def);
+      });
+      placementBox.append(h("div",{class:"comp-form-row"},h("label",{},"New group name"),inp));
+    }
+
+    const missing = promptParamIds(def.prompt).filter((id)=>(def.params||[]).every((p)=>p.id!==id));
+    paramsBox.append(h("p",{class:"comp-form-hint"},"Set Functionality here. That control is fixed in the studio — users only fill in the value (colour, dropdown, slider, and so on)."));
+    if (missing.length) {
+      paramsBox.append(
+        h("p",{class:"comp-form-hint"},`Prompt placeholders without a control: ${missing.join(", ")}.`),
+        h("button",{type:"button",class:"btn small",onclick:()=>{
+          ensureParamsForPrompt(def);
+          writeDef(def);
+        }},"Add inferred controls")
+      );
+    }
+    for (const [i, p] of (def.params||[]).entries()) {
+      const fn = inferParamFunction(p);
+      paramsBox.append(h("div",{class:"param-fn-card"},
+        h("div",{class:"param-fn-grid"},
+          h("div",{class:"comp-form-row"},h("label",{},"Id"),h("input",{type:"text",value:p.id||"",onchange:(e)=>{p.id=e.target.value.trim();writeDef(def);}})),
+          h("div",{class:"comp-form-row"},h("label",{},"Label"),h("input",{type:"text",value:p.label||"",onchange:(e)=>{p.label=e.target.value;writeDef(def);}})),
+          h("div",{class:"comp-form-row full"},h("label",{},"Value"),h("input",{"data-param-value":p.id,type:"text",value:formatParamValue(paramStoredValue(p)),onchange:(e)=>{
+            const v = parseParamValue(p, e.target.value);
+            tryValues[p.id] = v;
+            setParamStoredValue(p, v);
+            writeDef(def);
+          }})),
+          h("div",{class:"comp-form-row full"},h("label",{},"Functionality"),
+            h("select",{class:"comp-fn-select","aria-label":`${p.label||p.id||"Parameter"} functionality`,onchange:(e)=>{
+              delete tryValues[p.id];
+              def.params[i] = applyParamFunction(p, e.target.value);
+              writeDef(def);
+            }}, PARAM_FUNCTIONS.map((f)=>h("option",{value:f.id,selected:f.id===fn},f.label))))
+        ),
+        h("button",{type:"button",class:"btn small danger",onclick:()=>{def.params.splice(i,1);writeDef(def);}},"Remove")
+      ));
+    }
+    paramsBox.append(h("button",{type:"button",class:"btn small",onclick:()=>{
+      def.params = Array.isArray(def.params) ? def.params : [];
+      const n = def.params.length + 1;
+      def.params.push(applyParamFunction({ id: `param${n}`, label: `Parameter ${n}` }, "text"));
+      writeDef(def);
+    }},"+ Add parameter"));
+  };
+
+  ta.addEventListener("input",()=>{clearTimeout(timer);timer=setTimeout(()=>{tryValues={};drawTry();drawForms();},400);});
+
+  const save = async()=>{
+    let def; try{def=JSON.parse(ta.value);}catch(e){toast("Invalid JSON.","error");return;}
+    migrateStrayParamValues(def);
+    for (const p of def.params || []) {
+      if (tryValues[p.id] !== undefined) setParamStoredValue(p, tryValues[p.id]);
+    }
+    ensureParamsForPrompt(def);
+    if (isNew && REG.components?.[def.id]) { toast(`A component called ${def.id} already exists. Change the id.`,"error"); return; }
+    const errors=validateComponent(def);
+    if(errors.length){drawTry();toast("Fix the errors first.","error");return;}
+    const saved=await storeComponent(def);
+    if(saved){toast(`Saved "${saved.name}" v${saved.version||1}.`);setView("components");}
+  };
+  let armed=false;
+  const delBtn = comp?h("button",{class:"btn danger",onclick:async()=>{
+    if(!armed){armed=true;delBtn.textContent="Click again to delete";return;}
+    if(await deleteComponent(comp.id)){toast(`Deleted ${comp.name}.`);setView("components");}
+  }},"Delete"):null;
+  scroll.append(
+    pageHeader(
+      isNew?"New component":`Edit: ${comp.name}`,
+      isNew?"Start from a blank prompt. Choose a group and set how each parameter works in the studio.":"Press Save to keep changes. The version goes up when the prompt, controls or rules change.",
+      [
+        h("button",{class:"btn",onclick:()=>setView("components")},"Cancel"),
+        h("button",{class:"btn primary",onclick:save},isNew?"Create component":"Save component"),
+        delBtn
+      ]
+    ),
+    h("div",{class:"split"},
+    h("div",{class:"card"},
+      h("div",{class:"card-head"},h("h2",{},"Component definition (JSON)"),
+        h("button",{class:"btn small ghost",onclick:()=>{addingGroup=false;ta.value=JSON.stringify(starterComponent(),null,2);tryValues={};drawTry();drawForms();}},"Clear")),
+      h("div",{class:"card-body"},ta,errBox,
+        h("p",{style:"font-size:12px;color:var(--muted);margin:10px 0 0"},
+          MODE==="server"?`Saves to library/components/${isNew?"<id>":comp.id}.json on the server.`:"Demo mode: components are saved in this browser only."))),
+    h("div",{},
+      h("div",{class:"card"},h("div",{class:"card-head"},h("h2",{},"Group")),h("div",{class:"card-body"},placementBox)),
+      h("div",{class:"card",style:"margin-top:16px"},h("div",{class:"card-head"},h("h2",{},"Parameters")),h("div",{class:"card-body"},paramsBox)),
+      h("div",{class:"card",style:"margin-top:16px"},h("div",{class:"card-head"},h("h2",{},"Try it")),h("div",{class:"card-body"},tryBox)),
+      h("div",{class:"card",style:"margin-top:16px"},
+        h("div",{class:"card-head"},h("h2",{},"Field reference")),
+        h("div",{class:"card-body",style:"font-size:13px;line-height:1.6"},
+          refLine("prompt","The master prompt. Leave it blank to start, then write {{paramId}} to insert a control's value."),
+          refLine("category","Studio library group. Use the Group card to pick an existing one or add a new group."),
+          refLine("scope","theme (whole image, overrides the template), element (adds something), or rule (a restriction)."),
+          refLine("params","The controls users see after they drag this component onto the studio. Functionality is chosen here when you add the component, and is fixed in the studio."),
+          refLine("group","Components with the same replacement group replace each other. Example: colour_treatment."),
+          refLine("conflictsWith","Component ids that can't be used together with this one."),
+          refLine("affects","Tags this component changes. Themes can lock tags: palette, subject_colour, background, shapes, texture, layout, border, text."),
+          refLine("overrideNote","Theme only. A sentence telling the model which earlier instructions to ignore."),
+          refLine("rules","Extra \"do not\" lines. They are merged into one ADDITIONAL RULES list."))))));
+  drawTry();
+  drawForms();
+}
+const refLine = (k, text) => h("p",{style:"margin:0 0 6px"},h("code",{style:"background:var(--surface2);padding:1px 5px;border-radius:4px"},k)," ",text);
+
+function starterComponent() {
+  return {
+    id: "",
+    name: "",
+    category: "",
+    scope: "element",
+    description: "",
+    group: "",
+    affects: [],
+    conflictsWith: [],
+    prompt: "",
+    overrideNote: "",
+    params: [],
+    rules: []
+  };
+}
+
+async function storeComponent(def) {
+  if (!def.group) delete def.group;
+  if (!def.overrideNote) delete def.overrideNote;
+  if (MODE==="server") {
+    const r=await fetch(`api/components/${encodeURIComponent(def.id)}`,{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(def)});
+    const data=await r.json();
+    if(!r.ok){toast(data.error||"Save failed.","error");return null;}
+    REG.components[data.component.id]=data.component; return data.component;
+  }
+  const existing=REG.components[def.id];
+  const saved={...def,version:existing?(existing.version||1)+1:1};
+  REG.components[def.id]=saved; return saved;
+}
+
+async function deleteComponent(id) {
+  if(MODE==="server"){const r=await fetch(`api/components/${encodeURIComponent(id)}`,{method:"DELETE"});if(!r.ok){toast("Could not delete.","error");return false;}}
+  delete REG.components[id];
+  return true;
+}
+
+// ── Job history ──────────────────────────────────────────────
+async function renderJobs() {
+  setChrome("Recent designs", "jobs");
+  const scroll = resetScroll();
+  scroll.append(pageHeader(
+    "Recent designs",
+    "Your creative work, all in one place.",
+    [backToStudioBtn(), h("button",{class:"btn",onclick:renderJobs},"Refresh")]
+  ));
+  let jobs=[];
+  if(MODE==="server"){const r=await tryJson("api/jobs?limit=100");if(r)jobs=r;}
+  else if(REG._jobs) jobs=REG._jobs;
+  if(!jobs.length){
+    scroll.append(h("p",{class:"empty-copy"},"No designs yet. Your generated designs will appear here."));
+    return;
+  }
+  scroll.append(h("div",{class:"job-grid"},jobs.map(j=>jobCard(j))));
+}
+
+/**
+ * Builds a Recent designs card for one generation job.
+ *
+ * @param {object} j - Job record
+ * @returns {HTMLElement}
+ */
+const jobCard = (j) => {
+  const statusBadge={done:"green",failed:"red",running:"orange",pending:"yellow"}[j.status]||"grey";
+  const imgUrl=j.result?.imageUrl;
+  return h("button",{class:"job-card",type:"button",onclick:()=>imgUrl&&window.open(imgUrl)},
+    h("div",{class:"job-thumb"},
+      imgUrl?h("img",{src:imgUrl,alt:""}):h("span",{class:"spinner"})),
+    h("div",{class:"job-info"},
+      h("b",{},j.templateName||j.templateId||"Unknown template"),
+      h("small",{},relativeTime(j.createdAt)," · ",j.size||""),
+      j.result?.cached?h("small",{},h("span",{class:"badge green"},"From cache")):null),
+    h("div",{style:"padding:0 12px 12px"},h("span",{class:`badge ${statusBadge}`},j.status)));
+};
+
+function jobRow(j) {
+  return jobCard(j);
+}
+
+function autoRefreshJobs() {
+  setInterval(async()=>{
+    if(MODE!=="server"||currentView!=="jobs") return;
+    const jobs=await tryJson("api/jobs?limit=100");
+    if(jobs){REG._jobs=jobs;renderJobs();}
+  }, 8000);
+}
+
+init();
+</script>
+</body>
+</html>

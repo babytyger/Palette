@@ -1,0 +1,40 @@
+{
+  "cacheKey": "bbbffdc80ac2c2d405b33544cc24d2fba6b6bfd0ca536415c2319347cfff87ab",
+  "imageUrl": "/images/bbbffdc80ac2c2d405b33544cc24d2fba6b6bfd0ca536415c2319347cfff87ab.png",
+  "mime": "image/png",
+  "createdAt": "2026-09-26T15:47:45.690Z",
+  "templateId": "breaking_news_graphic",
+  "prompt": "Create a bold editorial breaking-news social graphic.\n\nSUBJECT\nUse the attached subject photograph as the primary subject, placed on the left half of the composition. Keep the subject photographic and naturally coloured. Do not distort, stylise or recolour the subject.\n\nACCENT COLOUR\nApply the selected accent colour (signal red (#DC2626)) to the bold geometric graphic elements in the background: a large vertical bar on the right, one or two horizontal rule lines, and a strong rectangular block behind the subject's head.\n\nSTYLE\nUse a crisp Swiss-modernist graphic style with clean rules, strong geometric shapes, and disciplined negative space.\n\nSPACE\nLeave the right third of the composition free of the subject. This area will carry text overlaid in post-production.\n\nFORMAT\nTall vertical 4:5 composition.\n\nAVOID\nDo not add any text, numbers, captions, logos or watermarks.",
+  "parts": [
+    {
+      "paramId": "subjectImage",
+      "label": "Subject Image",
+      "type": "image",
+      "hasFile": false,
+      "resolvedPhrase": "the attached subject photograph"
+    },
+    {
+      "paramId": "accentColor",
+      "label": "Accent Colour",
+      "type": "color",
+      "rawValue": "#DC2626",
+      "resolvedPhrase": "the selected accent colour (signal red (#DC2626))"
+    },
+    {
+      "paramId": "style",
+      "label": "Visual Style",
+      "type": "select",
+      "rawValue": "swiss_modern",
+      "resolvedPhrase": "Use a crisp Swiss-modernist graphic style with clean rules, strong geometric shapes, and disciplined negative space."
+    }
+  ],
+  "size": "1024x1536",
+  "exportSize": [
+    1080,
+    1350
+  ],
+  "warnings": [],
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "mock": false
+}

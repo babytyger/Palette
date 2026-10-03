@@ -1,0 +1,52 @@
+{
+  "cacheKey": "4fbe666c90b4f4e5119a5952b39eb6bf2d18487f2d2a964e6c5ffed4ef933df0",
+  "imageUrl": "/images/4fbe666c90b4f4e5119a5952b39eb6bf2d18487f2d2a964e6c5ffed4ef933df0.png",
+  "mime": "image/png",
+  "createdAt": "2026-10-01T14:18:37.687Z",
+  "templateId": "circular_editorial_montage",
+  "prompt": "ATTACHED IMAGES\n3 images are attached to this request, in this order. They are referred to below by number.\nImage 1 (Subject image 1) is the main subject. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nImage 2 (Subject image 2) is the main subject. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nImage 3 (Subject image 3) is the main subject. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nCreate a fixed 1:1 square conceptual editorial photomontage using the attached subject image 1 (image 1), the attached subject image 2 (image 2), and the attached subject image 3 (image 3)...\n\nThe final result must read as a layered geometric collage...\n\nADDITIONAL ELEMENTS\nAdd the following to the composition. Keep the layout and hierarchy described above.\nApply an authentic overprint texture to the affected element. Simulate layered printed inks overlapping on paper, creating subtle color mixing, ink density variation, slight registration shifts and areas where underlying colors visibly interact. Preserve the original shape, details, colors and information while giving the element a physical layered-print appearance.\n\nAdd rectangular blocks using Medium density and #6F7A4E. Arrange the blocks with varied sizes, spacing and positioning while keeping them visually clean and distinct. The blocks should remain behind and never obscure the primary subject or important information.\n\nADDITIONAL RULES\n- {\"condition\":\"shape_density = Low\",\"instruction\":\"Use a small number of widely separated rectangular blocks with substantial negative space.\"}\n- {\"condition\":\"shape_density = Medium\",\"instruction\":\"Use a balanced number of rectangular blocks with varied sizes and moderate spacing.\"}\n- {\"condition\":\"shape_density = High\",\"instruction\":\"Use many rectangular blocks with tighter spacing and greater visual coverage while keeping individual blocks distinguishable.\"}\n- {\"condition\":\"always\",\"instruction\":\"Keep all blocks rectangular with varied width and height. Do not transform them into circles, polygons or other shapes.\"}\n- {\"condition\":\"always\",\"instruction\":\"Do not allow blocks to distort, replace or obscure the primary subject or important visual information.\"}\n- Use the subject from the attached image exactly as photographed. Do not distort, stretch, warp, redraw, retouch or replace it, and do not change its identity, features or proportions.",
+  "parts": [
+    {
+      "paramId": "subjectImage1",
+      "label": "Subject image 1",
+      "type": "image",
+      "hasFile": true,
+      "index": 1,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 1 (image 1)"
+    },
+    {
+      "paramId": "subjectImage2",
+      "label": "Subject image 2",
+      "type": "image",
+      "hasFile": true,
+      "index": 2,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 2 (image 2)"
+    },
+    {
+      "paramId": "subjectImage3",
+      "label": "Subject image 3",
+      "type": "image",
+      "hasFile": true,
+      "index": 3,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 3 (image 3)"
+    },
+    {
+      "paramId": "sideCircleTint",
+      "label": "Side circle tint",
+      "type": "color",
+      "rawValue": "#7A5A8C",
+      "resolvedPhrase": "#7A5A8C"
+    }
+  ],
+  "components": [
+    "overprint_test",
+    "rectangular_blocks_test"
+  ],
+  "warnings": [],
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "mock": false
+}

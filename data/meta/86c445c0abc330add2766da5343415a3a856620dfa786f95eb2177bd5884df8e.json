@@ -1,0 +1,45 @@
+{
+  "cacheKey": "86c445c0abc330add2766da5343415a3a856620dfa786f95eb2177bd5884df8e",
+  "imageUrl": "/images/86c445c0abc330add2766da5343415a3a856620dfa786f95eb2177bd5884df8e.png",
+  "mime": "image/png",
+  "createdAt": "2026-09-27T07:42:04.038Z",
+  "templateId": "breaking_news_graphic",
+  "prompt": "ATTACHED IMAGES\nOne image is attached to this request. It is referred to below as image 1.\nImage 1 (Subject Image) is the main subject of the graphic. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nCreate a bold editorial breaking-news social graphic.\n\nSUBJECT\nUse the attached subject photograph (image 1) as the primary subject, placed on the left half of the composition. Keep the subject photographic and naturally coloured. Do not distort, stylise or recolour the subject.\n\nACCENT COLOUR\nApply the selected accent colour (signal red (#DC2626)) to the bold geometric graphic elements in the background: a large vertical bar on the right, one or two horizontal rule lines, and a strong rectangular block behind the subject's head.\n\nSTYLE\nUse an editorial ink-on-paper style with high-contrast black and slightly textured graphic shapes.\n\nSPACE\nLeave the right third of the composition free of the subject. This area will carry text overlaid in post-production.\n\nFORMAT\nTall vertical 4:5 composition.\n\nAVOID\nDo not add any text, numbers, captions, logos or watermarks.\n\nADDITIONAL ELEMENTS\nAdd the following to the composition. Keep the layout and hierarchy described above.\nAdd one large, flat, solid block of cobalt blue (#0047AB) as a background element, placed directly behind the subject as a tall rectangle. It must have clean straight edges and no texture or gradient.\n\nADDITIONAL RULES\n- Use the subject from the attached image exactly as photographed. Do not distort, stretch, warp, redraw, retouch or replace it, and do not change its identity, features or proportions.",
+  "parts": [
+    {
+      "paramId": "subjectImage",
+      "label": "Subject Image",
+      "type": "image",
+      "hasFile": true,
+      "index": 1,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject photograph (image 1)"
+    },
+    {
+      "paramId": "accentColor",
+      "label": "Accent Colour",
+      "type": "color",
+      "rawValue": "#DC2626",
+      "resolvedPhrase": "the selected accent colour (signal red (#DC2626))"
+    },
+    {
+      "paramId": "style",
+      "label": "Visual Style",
+      "type": "select",
+      "rawValue": "editorial_ink",
+      "resolvedPhrase": "Use an editorial ink-on-paper style with high-contrast black and slightly textured graphic shapes."
+    }
+  ],
+  "components": [
+    "colour_block"
+  ],
+  "size": "1024x1536",
+  "exportSize": [
+    1080,
+    1350
+  ],
+  "warnings": [],
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "mock": false
+}

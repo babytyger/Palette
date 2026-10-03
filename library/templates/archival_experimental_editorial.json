@@ -1,0 +1,41 @@
+{
+  "id": "archival_experimental_editorial",
+  "name": "Archival Experimental Editorial",
+  "description": "1:1 minimalist experimental editorial collage combining a monochrome photographic subject, archival data graphics, a scientific circular diagram, tinted paper, and one dynamically controlled geometric highlight.",
+  "systemPrompt": "Create a fixed 1:1 square minimalist experimental editorial collage using {{subjectImage}} as the primary and only content reference. Preserve the original subject's identity, appearance, physical structure, pose, silhouette, clothing, product design, object geometry, proportions, and recognizable characteristics. Do not invent, replace, redesign, or distort the subject.\n\nTransform the subject into a monochrome black-and-white photographic reproduction using rich matte blacks, controlled dark-gray shadows, soft gray midtones, paper-influenced highlights, believable source lighting, subtle photographic grain, halftone dots, photocopy noise, dry toner texture, rough ink edges, and restrained print imperfections. Keep the subject immediately recognizable and visually dominant, occupying approximately 60–75% of the square canvas with a close or medium-close crop and an intentionally offset editorial placement.\n\nUse {{backgroundColor}} as the base archival paper color. Preserve an aged physical-paper character with subtle fibers, speckles, stains, unevenness, photocopy contamination, and restrained printing imperfections. Keep generous negative space and avoid creating a detailed environmental background.\n\nPlace one large thin-line circular technical diagram behind the subject. It should behave like a conceptual halo or analytical instrument, extending beyond the subject on multiple sides while remaining partially hidden behind it. Build it from delicate black or dark-charcoal technical linework such as concentric circles, radial divisions, measurement ticks, compass segments, scientific plotting divisions, astronomical-chart structures, navigational geometry, engineering notation, statistical-wheel structures, fragmentary notes, tiny index numbers, and technical symbols. It should feel like an old scientific or technical archive rather than a clean digital diagram.\n\nInclude one substantial archival-data graphic region tinted {{overlayTintColor}}. It should intersect or overlap the subject and feel physically screen-printed, photocopied, offset-printed, or overprinted into the artwork. Fill this region with dense black archival information such as plotting curves, grids, numeric columns, financial traces, scientific measurements, coordinates, technical labels, document fragments, chart lines, ruled grids, tabulated values, handwritten annotations, index numbers, symbols, and small diagrammatic marks. Keep the information fragmented and primarily visual rather than forming prominent readable typography.\n\nAdd exactly one primary graphic highlight element controlled by {{highlightShape}} and {{highlightColor}}. Interpret {{highlightShape}} literally. It may be a horizontal strip, vertical strip, diagonal strip, circle, semicircle, square, rectangle, triangle, oval, diamond, polygon, trapezoid, irregular geometric block, crescent, arc, or another clearly described geometry. Never automatically replace a requested geometry with a rectangle.\n\nIf {{highlightShape}} describes a horizontal, vertical, or diagonal strip, preserve a bold archival-strike thickness and visual weight. Allow the strip to intersect, pass across, pass behind, or partially overlap the subject while maintaining subject recognition. If {{highlightShape}} describes a non-strip geometric shape, generate exactly that shape and anchor it to a dynamically selected edge of the subject's visible silhouette. The placement may vary between generations and may attach to the head, shoulder, torso, arm, hand, leg, product perimeter, sculpture contour, architectural edge, or another suitable structural boundary. The shape should partially overlap the subject and may partially extend outside its silhouette. Avoid hiding defining facial or structural features and never leave the shape randomly floating in empty space.\n\nRender the entire primary highlight element using {{highlightColor}}. It should resemble screen-printed pigment, offset ink, photocopy toner, or analog registration ink rather than neon lighting, glowing CGI, transparent glass, digital lens flare, holographic UI, or a modern gradient. Slight ink irregularity, print grain, and imperfect pigment coverage are encouraged.\n\nMaintain a strong visual hierarchy: 1. recognizable monochrome photographic subject, 2. {{highlightShape}} rendered in {{highlightColor}}, 3. archival-data region using {{overlayTintColor}}, 4. technical circular diagram, 5. archival paper using {{backgroundColor}}. Use only deep black, grayscale photographic tones, {{backgroundColor}}, {{overlayTintColor}}, and {{highlightColor}}. Do not introduce arbitrary additional accent colors. If {{overlayTintColor}} and {{highlightColor}} differ, maintain clear separation between the two graphic layers.\n\nThe fixed aesthetic should combine late-20th-century experimental editorial design, 1960s–1980s avant-garde magazine graphics, Japanese experimental publication design, restrained Swiss modernism, constructivist photomontage, scientific and financial archival documents, vintage photocopy reproduction, and offset-printed academic material. The subject must remain fundamentally photographic and must not become a painting, vector illustration, cartoon, comic, 3D render, or conventional poster illustration. The artwork should feel physically assembled from photography, technical documents, photocopies, transparent ink, and offset printing.\n\nApply authentic but controlled analog imperfections including fine photographic grain, photocopy noise, halftone dots, dry toner texture, rough ink edges, subtle paper grain, faint offset-print misregistration, irregular ink density, distressed technical linework, faded marks, and microscopic printing flaws. Keep the artwork sophisticated, analytical, archival, slightly dystopian, cerebral, and intentionally imperfect rather than heavily distressed.\n\nDo not include extra people, limbs, products, unrelated objects, branding, logos, large readable headlines, slogans, captions, modern UI elements, stickers, badges, arrows, decorative icons, modern infographics, futuristic holographic interfaces, glossy gradients, neon effects, 3D typography, painterly brushwork, anime, comic, cartoon, vector-art, digital-painting aesthetics, detailed photographic environments, or arbitrary accent colors. Do not alter the subject's identity, anatomy, facial structure, hairstyle, expression, clothing, accessories, or recognizable object geometry. Do not distort the subject merely to fit the layout. Do not ignore {{highlightShape}}, change {{highlightColor}}, change {{backgroundColor}}, or repeatedly place the highlight on the same subject region. Do not let the highlight completely obscure the subject. Do not make the technical diagram digitally perfect or the archival data perfectly legible. Do not fill all negative space. The final result should look like a deliberately composed analog editorial artifact, not a contemporary template with a vintage filter applied afterward.",
+  "params": [
+    {
+      "id": "subjectImage",
+      "label": "Subject image",
+      "type": "image",
+      "fidelity": "exact"
+    },
+    {
+      "id": "overlayTintColor",
+      "label": "Archival overlay tint",
+      "type": "color",
+      "defaultHex": "#E03013"
+    },
+    {
+      "id": "highlightShape",
+      "label": "Highlight shape",
+      "type": "text",
+      "defaultValue": "horizontal strip"
+    },
+    {
+      "id": "highlightColor",
+      "label": "Highlight color",
+      "type": "color",
+      "defaultHex": "#E03013"
+    },
+    {
+      "id": "backgroundColor",
+      "label": "Background color",
+      "type": "color",
+      "defaultHex": "#E8E1D2"
+    }
+  ],
+  "version": 1,
+  "referenceImage": "/references/retro_circular_editorial_collage_copy.png",
+  "updatedAt": "2026-10-03T08:13:34.232Z"
+}

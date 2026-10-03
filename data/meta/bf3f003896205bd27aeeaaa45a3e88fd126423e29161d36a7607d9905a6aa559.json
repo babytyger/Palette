@@ -1,0 +1,49 @@
+{
+  "cacheKey": "bf3f003896205bd27aeeaaa45a3e88fd126423e29161d36a7607d9905a6aa559",
+  "imageUrl": "/images/bf3f003896205bd27aeeaaa45a3e88fd126423e29161d36a7607d9905a6aa559.png",
+  "mime": "image/png",
+  "createdAt": "2026-10-02T06:09:03.771Z",
+  "templateId": "circular_editorial_montage",
+  "prompt": "ATTACHED IMAGES\n3 images are attached to this request, in this order. They are referred to below by number.\nImage 1 (Subject image 1) is the main subject. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nImage 2 (Subject image 2) is the main subject. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nImage 3 (Subject image 3) is the main subject. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nCreate a fixed 1:1 square conceptual editorial photomontage using the attached subject image 1 (image 1), the attached subject image 2 (image 2), and the attached subject image 3 (image 3)...\n\nThe final result must read as a layered geometric collage...\n\nADDITIONAL RULES\n- Use the subject from the attached image exactly as photographed. Do not distort, stretch, warp, redraw, retouch or replace it, and do not change its identity, features or proportions.",
+  "parts": [
+    {
+      "paramId": "subjectImage1",
+      "label": "Subject image 1",
+      "type": "image",
+      "hasFile": true,
+      "index": 1,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 1 (image 1)"
+    },
+    {
+      "paramId": "subjectImage2",
+      "label": "Subject image 2",
+      "type": "image",
+      "hasFile": true,
+      "index": 2,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 2 (image 2)"
+    },
+    {
+      "paramId": "subjectImage3",
+      "label": "Subject image 3",
+      "type": "image",
+      "hasFile": true,
+      "index": 3,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 3 (image 3)"
+    },
+    {
+      "paramId": "sideCircleTint",
+      "label": "Side circle tint",
+      "type": "color",
+      "rawValue": "#E03013",
+      "resolvedPhrase": "#E03013"
+    }
+  ],
+  "components": [],
+  "warnings": [],
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "mock": false
+}

@@ -1,0 +1,21 @@
+{
+  "id": "grain_test",
+  "name": "Grain",
+  "category": "Texture",
+  "scope": "element",
+  "description": "",
+  "affects": [],
+  "conflictsWith": [],
+  "prompt": "Apply a natural photographic grain texture at {depth_level} intensity. Add fine, organic grain across the affected element with subtle variations in density and size while preserving the original shape, details, colors and information.",
+  "params": [
+    {
+      "id": "depth_level",
+      "label": "Value",
+      "type": "text",
+      "defaultValue": "Low"
+    }
+  ],
+  "rules": [],
+  "version": 1,
+  "updatedAt": "2026-09-30T10:19:48.280Z"
+}

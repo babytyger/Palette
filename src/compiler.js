@@ -1,0 +1,450 @@
+// Palette Admin — prompt compiler.
+// Takes a template definition + the user's parameter values and builds
+// the exact prompt string sent to the image API.
+// No imports, so the browser admin panel uses this same code.
+//
+// Components: a component is a reusable master prompt block (for example
+// Duotone or Geometric Shapes) with its own controls. Users stack components
+// on top of any template. compilePrompt() appends them in three sections:
+//   ADDITIONAL ELEMENTS  (scope "element")  things added inside the image
+//   THEME                (scope "theme")    treatments applied to the whole image
+//   ADDITIONAL RULES     (scope "rule" + every component's rules list)
+
+export const PARAM_TYPES = ["text", "textarea", "color", "palette", "select", "multiselect", "slider", "switch", "image"];
+export const COMPONENT_SCOPES = ["theme", "element", "rule"];
+export const IMAGE_FIDELITY = ["exact", "source", "style"];
+export const COMPONENT_CATEGORIES = ["Colour", "Texture", "Shape", "Background", "Layout", "Subject", "Rules"];
+
+// Validates a template definition. Returns an array of plain-English errors.
+export function validateTemplate(tpl) {
+  const errors = [];
+  if (!tpl || typeof tpl !== "object") return ["Template must be a JSON object."];
+  if (!tpl.id || !/^[a-z0-9_-]{2,80}$/.test(tpl.id)) errors.push("id must use lowercase letters, numbers, underscores or hyphens.");
+  if (!tpl.name) errors.push("Template needs a name.");
+  if (!tpl.systemPrompt || typeof tpl.systemPrompt !== "string") errors.push("Template needs a systemPrompt.");
+  if (!Array.isArray(tpl.params)) errors.push("Template needs a params array.");
+  if (tpl.locks != null && !Array.isArray(tpl.locks)) errors.push("locks must be an array of tags, e.g. [\"subject_colour\"].");
+  if (tpl.referenceImage != null && tpl.referenceImage !== "") {
+    if (typeof tpl.referenceImage !== "string") errors.push("referenceImage must be a string.");
+    else if (!tpl.referenceImage.startsWith("data:image") && !tpl.referenceImage.startsWith("/references/")) {
+      errors.push("referenceImage must be an uploaded image.");
+    }
+  }
+  errors.push(...validateParams(tpl.params || [], tpl.systemPrompt || ""));
+  return errors;
+}
+
+// Shared checks for a params array and the prompt that uses it.
+function validateParams(params, promptText, { allowImage = true } = {}) {
+  const errors = [];
+  const seen = new Set();
+  for (const p of params) {
+    if (!p.id || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(p.id)) errors.push(`Param "${p.id || "?"}" has an invalid id.`);
+    if (seen.has(p.id)) errors.push(`Param id "${p.id}" appears more than once.`);
+    seen.add(p.id);
+    if (!p.label) errors.push(`Param "${p.id}" needs a label.`);
+    if (!PARAM_TYPES.includes(p.type)) errors.push(`Param "${p.id}" type must be one of: ${PARAM_TYPES.join(", ")}.`);
+    if (!allowImage && p.type === "image") errors.push(`Param "${p.id}": components cannot take image inputs.`);
+    if (p.type === "image" && p.fidelity != null && !IMAGE_FIDELITY.includes(p.fidelity)) {
+      errors.push(`Param "${p.id}" fidelity must be one of: ${IMAGE_FIDELITY.join(", ")}.`);
+    }
+    if ((p.type === "select" || p.type === "multiselect") && (!Array.isArray(p.options) || !p.options.length)) {
+      errors.push(`Param "${p.id}" is a ${p.type} but has no options.`);
+    }
+    if (p.type === "slider" && !(Number(p.min) < Number(p.max))) {
+      errors.push(`Param "${p.id}" slider min must be less than max.`);
+    }
+  }
+
+  // Every {{placeholder}} in the prompt must map to a param id
+  const placeholders = [...promptText.matchAll(/\{\{([a-zA-Z0-9_]+)\}\}/g)].map((m) => m[1]);
+  for (const ph of placeholders) {
+    if (!params.some((p) => p.id === ph)) {
+      errors.push(`The prompt uses {{${ph}}} but there is no param with that id.`);
+    }
+  }
+  return errors;
+}
+
+// Validates a component definition. Returns an array of plain-English errors.
+export function validateComponent(c) {
+  const errors = [];
+  if (!c || typeof c !== "object") return ["Component must be a JSON object."];
+  if (!c.id || !/^[a-z0-9_-]{2,80}$/.test(c.id)) errors.push("id must use lowercase letters, numbers, underscores or hyphens.");
+  if (!c.name) errors.push("Component needs a name.");
+  if (!COMPONENT_SCOPES.includes(c.scope)) errors.push(`scope must be one of: ${COMPONENT_SCOPES.join(", ")}.`);
+  if (!c.prompt || typeof c.prompt !== "string") errors.push("Component needs a prompt.");
+  if (c.params != null && !Array.isArray(c.params)) errors.push("params must be an array.");
+  for (const key of ["rules", "affects", "conflictsWith"]) {
+    if (c[key] != null && !Array.isArray(c[key])) errors.push(`${key} must be an array.`);
+  }
+  errors.push(...validateParams(c.params || [], c.prompt || "", { allowImage: false }));
+  return errors;
+}
+
+// Returns the default value for any param, used to pre-fill the UI.
+export function defaultParamValue(p) {
+  switch (p.type) {
+    case "color": return p.defaultHex || "#0047AB";
+    case "select": return p.defaultValue ?? p.options?.[0]?.value;
+    case "multiselect": return Array.isArray(p.defaultValue) ? [...p.defaultValue] : (p.options?.[0] ? [p.options[0].value] : []);
+    case "slider": return p.defaultValue ?? Math.round((Number(p.min) + Number(p.max)) / 2);
+    case "switch": return Boolean(p.defaultValue);
+    case "palette": return Array.isArray(p.defaultValue) ? p.defaultValue.map((c) => ({ ...c })) : [];
+    default: return p.defaultValue ?? null;
+  }
+}
+
+// Checks a list of chosen components against each other and the template.
+// selections: [{ id, values }]. library: { componentId: definition }.
+// Returns { accepted: [{ component, values }], problems: [{ id, reason }] }.
+// A later selection that clashes with an earlier one is dropped.
+export function checkComponents(template, selections = [], library = {}) {
+  const accepted = [];
+  const problems = [];
+  const locks = new Set(template?.locks || []);
+  const blocked = new Set(template?.blockedComponents || []);
+  for (const sel of selections) {
+    const component = library[sel?.id];
+    if (!component) { problems.push({ id: sel?.id, reason: `Unknown component "${sel?.id}".` }); continue; }
+    if (accepted.some((a) => a.component.id === component.id)) {
+      problems.push({ id: component.id, reason: `"${component.name}" was added twice. Only the first one is used.` });
+      continue;
+    }
+    if (blocked.has(component.id)) {
+      problems.push({ id: component.id, reason: `"${component.name}" is not allowed on the "${template.name}" template.` });
+      continue;
+    }
+    const lockHit = (component.affects || []).filter((tag) => locks.has(tag));
+    if (lockHit.length) {
+      problems.push({ id: component.id, reason: `"${component.name}" changes ${lockHit.map(humanTag).join(" and ")}, which the "${template.name}" template locks.` });
+      continue;
+    }
+    const clash = accepted.find((a) =>
+      (component.group && a.component.group === component.group) ||
+      (component.conflictsWith || []).includes(a.component.id) ||
+      (a.component.conflictsWith || []).includes(component.id));
+    if (clash) {
+      const why = component.group && clash.component.group === component.group
+        ? `both are ${humanTag(component.group)} options`
+        : "they give opposite instructions";
+      problems.push({ id: component.id, reason: `"${component.name}" can't be used with "${clash.component.name}" because ${why}.` });
+      continue;
+    }
+    accepted.push({ component, values: sel.values || {} });
+  }
+  return { accepted, problems };
+}
+
+const humanTag = (t) => String(t).replace(/_/g, " ");
+
+// Turns a rule list item into prompt text. Objects use text/prompt/rule.
+function ruleToText(r) {
+  if (r == null) return "";
+  if (typeof r === "string") return r;
+  if (typeof r === "object") {
+    const text = r.text ?? r.prompt ?? r.rule;
+    if (typeof text === "string") return text;
+    try { return JSON.stringify(r); } catch { return ""; }
+  }
+  return String(r);
+}
+
+// Substitutes {{id}} and {id} using resolved param phrases.
+function fillPlaceholders(text, resolvedValues) {
+  return String(text ?? "")
+    .replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (m, id) => (resolvedValues[id] !== undefined ? resolvedValues[id] : m))
+    .replace(/\{([a-zA-Z][a-zA-Z0-9_]*)\}/g, (m, id) => (resolvedValues[id] !== undefined ? resolvedValues[id] : m));
+}
+
+// Resolves one component into its final prompt text.
+export function compileComponent(component, values = {}) {
+  const resolvedValues = {};
+  const parts = [];
+  for (const p of component.params || []) {
+    const raw = values[p.id] ?? defaultParamValue(p);
+    const phrase = resolveParam(p, raw, component.paramPromptFragments || {});
+    resolvedValues[p.id] = phrase;
+    parts.push({ paramId: p.id, label: p.label, type: p.type, rawValue: raw, resolvedPhrase: phrase });
+  }
+  const fill = (text) => fillPlaceholders(text, resolvedValues);
+  return {
+    id: component.id,
+    name: component.name,
+    scope: component.scope,
+    affects: component.affects || [],
+    text: fill(component.prompt).trim(),
+    overrideNote: component.overrideNote ? fill(component.overrideNote).trim() : "",
+    rules: (component.rules || []).map(ruleToText).map(fill).map((r) => r.trim()).filter(Boolean),
+    parts
+  };
+}
+
+// Resolves one parameter value into a plain-English phrase for the prompt.
+// For image params: the placeholder becomes a short reference ("the attached subject photograph").
+// For color: it becomes the hex value and a colour name if available.
+// For select: it becomes the option's own prompt text, or its label.
+export function resolveParam(param, value, paramFragments = {}) {
+  switch (param.type) {
+    case "image": {
+      return paramFragments[param.id]
+        ? paramFragments[param.id].replace("{{value}}", value || "(no image)")
+        : `the attached ${(param.label || param.id).toLowerCase()} (image {{index}})`;
+    }
+    case "color": {
+      const hex = String(value || param.defaultHex || "#000000").toUpperCase();
+      const name = colorName(hex);
+      const fragment = paramFragments[param.id] || "{{value}}";
+      return fragment.replace("{{value}}", name ? `${name} (${hex})` : hex);
+    }
+    case "select": {
+      const chosen = param.options?.find((o) => o.value === value) ?? param.options?.[0];
+      if (!chosen) return "";
+      const fragment = paramFragments[param.id];
+      if (fragment && fragment.includes("{{optionPrompt}}")) return fragment.replace("{{optionPrompt}}", chosen.prompt || chosen.label);
+      return chosen.prompt || chosen.label || String(value);
+    }
+    case "multiselect": {
+      const chosen = (param.options || []).filter((o) => (Array.isArray(value) ? value : [value]).includes(o.value));
+      const phrase = joinList(chosen.map((o) => o.prompt || o.label));
+      const fragment = paramFragments[param.id];
+      if (fragment && fragment.includes("{{optionPrompt}}")) return fragment.replace("{{optionPrompt}}", phrase);
+      return phrase || "(nothing selected)";
+    }
+    case "slider": {
+      const n = Number(value ?? param.defaultValue ?? param.min ?? 0);
+      if (Array.isArray(param.bands)) {
+        const band = param.bands.find((b) => n <= Number(b.upTo)) || param.bands[param.bands.length - 1];
+        return band?.prompt || String(n);
+      }
+      return `${n}${param.unit || ""}`;
+    }
+    case "switch": return value ? (param.onPrompt || "enabled") : (param.offPrompt || "");
+    case "palette": {
+      const colours = Array.isArray(value) ? value : [];
+      const names = colours.map((c) => (c.name ? `${c.name} (${c.hex})` : c.hex)).join(", ");
+      return names || "(no colours selected)";
+    }
+    default: return String(value ?? "").trim();
+  }
+}
+
+// Builds the complete prompt string.
+// values: { paramId: userValue, ... }
+// options.components: [{ id, values }] chosen by the user, in order.
+// options.library: { componentId: definition } — the component registry.
+// Returns { prompt, parts, components, componentProblems, warnings, resolvedValues }
+export function compilePrompt(template, values = {}, options = {}) {
+  const errors = validateTemplate(template);
+  if (errors.length) throw Object.assign(new Error(errors.join(" ")), { errors });
+
+  const warnings = [];
+  const parts = [];
+  const resolvedValues = {};
+  const fragments = template.paramPromptFragments || {};
+
+  // Attached images are sent to the API in param order. Optional images
+  // with no upload are skipped, so number only the ones that will be sent.
+  const imageParams = template.params.filter((p) => p.type === "image");
+  const imageValue = (p) => values[p.id] ?? values[p.configPath] ?? null;
+  const sentImages = imageParams.filter((p) => imageValue(p) || !p.optional);
+  const imageIndex = Object.fromEntries(sentImages.map((p, i) => [p.id, i + 1]));
+  const missingImages = imageParams.filter((p) => !p.optional && !imageValue(p)).map((p) => p.label || p.id);
+
+  // Resolve every param
+  for (const param of template.params) {
+    const userValue = values[param.id] ?? values[param.configPath] ?? null;
+    const isImage = param.type === "image";
+
+    // Missing required non-image param
+    if (!isImage && userValue == null && !param.optional) {
+      const fallback = param.defaultHex || param.defaultValue || "";
+      warnings.push(`"${param.label}" has no value. Using ${fallback ? `default (${fallback})` : "empty"}.`);
+    }
+
+    let resolved = resolveParam(param, userValue ?? param.defaultHex ?? param.defaultValue, fragments);
+    if (isImage) resolved = resolved.replace(/\s*\(image \{\{index\}\}\)/, imageIndex[param.id] ? ` (image ${imageIndex[param.id]})` : "").replace("{{index}}", imageIndex[param.id] || "");
+    resolvedValues[param.id] = resolved;
+
+    if (param.type !== "image") {
+      parts.push({
+        paramId: param.id,
+        label: param.label,
+        type: param.type,
+        rawValue: userValue ?? param.defaultHex ?? param.defaultValue ?? null,
+        resolvedPhrase: resolved
+      });
+    } else {
+      parts.push({
+        paramId: param.id,
+        label: param.label,
+        type: "image",
+        hasFile: Boolean(userValue),
+        index: imageIndex[param.id] || null,
+        fidelity: param.fidelity || "exact",
+        resolvedPhrase: resolved
+      });
+    }
+  }
+
+  // Substitute every {{placeholder}} in the system prompt
+  const base = template.systemPrompt.replace(/\{\{([a-zA-Z0-9_]+)\}\}/g, (_, id) => {
+    if (resolvedValues[id] !== undefined) return resolvedValues[id];
+    warnings.push(`No resolved value found for {{${id}}}.`);
+    return `{{${id}}}`;
+  });
+
+  // Components
+  const { accepted, problems } = checkComponents(template, options.components || [], options.library || {});
+  for (const pr of problems) warnings.push(pr.reason);
+  const components = accepted.map((a) => compileComponent(a.component, a.values));
+  const inputImages = sentImages.map((p) => ({
+    index: imageIndex[p.id], id: p.id, label: p.label || p.id,
+    fidelity: p.fidelity || "exact", usage: p.usage || ""
+  }));
+  const { prompt, sections } = assemblePrompt(base, components, { inputImages, templateName: template.name });
+
+  return {
+    prompt, parts, components, sections, componentProblems: problems, inputImages, missingImages,
+    warnings, resolvedValues, templateId: template.id, version: template.version
+  };
+}
+
+// Joins the template prompt and the compiled components into one master prompt.
+// Returns the full prompt and the list of sections, so the UI can highlight them.
+// Each section item has a short `name` for the live preview and `text` for the prompt.
+export function assemblePrompt(base, components = [], { inputImages = [], templateName = "Template" } = {}) {
+  const sections = [];
+  const elements = components.filter((c) => c.scope === "element");
+  const themes = components.filter((c) => c.scope === "theme");
+  const recolours = themes.some((c) => c.affects?.includes("subject_colour"));
+  const imageRules = [];
+
+  // ATTACHED IMAGES comes first, so the model knows what each file is
+  // before it reads the design instructions.
+  if (inputImages.length) {
+    sections.push({
+      kind: "input", title: "ATTACHED IMAGES",
+      intro: inputImages.length === 1
+        ? "One image is attached to this request. It is referred to below as image 1."
+        : `${inputImages.length} images are attached to this request, in this order. They are referred to below by number.`,
+      items: inputImages.map((im) => ({ id: im.id, name: `Image ${im.index}: ${im.label}`, text: imageInstruction(im, recolours) }))
+    });
+    if (inputImages.some((im) => im.fidelity === "exact")) {
+      imageRules.push({
+        id: "exact-subject",
+        name: "Exact subject",
+        text: "Use the subject from the attached image exactly as photographed. Do not distort, stretch, warp, redraw, retouch or replace it, and do not change its identity, features or proportions."
+      });
+    }
+  }
+  sections.push({
+    kind: "template",
+    title: "TEMPLATE",
+    text: base.trim(),
+    items: [{ id: "template", name: templateName, text: base.trim() }]
+  });
+
+  const ruleItems = [];
+  const seenRules = new Set();
+  const pushRule = (item) => {
+    if (!item?.text || seenRules.has(item.text)) return;
+    seenRules.add(item.text);
+    ruleItems.push(item);
+  };
+  for (const c of components.filter((c) => c.scope === "rule")) {
+    pushRule({ id: c.id, name: c.name, text: c.text });
+  }
+  for (const c of components) {
+    (c.rules || []).forEach((text, i) => pushRule({ id: `${c.id}-rule-${i}`, name: c.name, text }));
+  }
+  imageRules.forEach(pushRule);
+
+  if (elements.length) {
+    sections.push({
+      kind: "element", title: "ADDITIONAL ELEMENTS",
+      intro: "Add the following to the composition. Keep the layout and hierarchy described above.",
+      items: elements.map((c) => ({ id: c.id, name: c.name, text: c.text }))
+    });
+  }
+  if (themes.length) {
+    sections.push({
+      kind: "theme", title: "THEME",
+      intro: "The following treatment applies to the whole finished image. Where it conflicts with any earlier instruction, follow this section.",
+      items: themes.map((c) => ({ id: c.id, name: c.name, text: [c.text, c.overrideNote].filter(Boolean).join(" ") }))
+    });
+  }
+  if (ruleItems.length) {
+    sections.push({ kind: "rule", title: "ADDITIONAL RULES", items: ruleItems });
+  }
+
+  const blocks = sections.map((s) => {
+    if (s.kind === "template") return s.text;
+    const body = s.kind === "rule"
+      ? s.items.map((i) => `- ${i.text}`).join("\n")
+      : (s.items || []).map((i) => i.text).join("\n\n");
+    return [s.title, s.intro, body].filter(Boolean).join("\n");
+  });
+  return { prompt: blocks.join("\n\n"), sections };
+}
+
+// Plain-English instruction for one attached image, based on its fidelity.
+//   exact  - use the real subject unchanged (people, products, logos)
+//   source - raw material that may be cropped and recoloured
+//   style  - reference for look and feel only
+function imageInstruction(im, recolours) {
+  const n = `image ${im.index}`;
+  if (im.fidelity === "source") {
+    return [
+      `Use ${n} (${im.label}) only as ${im.usage || "source material"}, in the way the instructions below describe.`,
+      "You may crop it, scale it evenly and recolour it where the instructions say so.",
+      "Do not stretch, warp or distort the content inside it, and do not invent content that is not in it."
+    ].join(" ");
+  }
+  if (im.fidelity === "style") {
+    return [
+      `Use ${n} (${im.label}) only as ${im.usage || "a reference for style, colour and mood"}.`,
+      "Do not copy its people, faces, text, logos or specific objects into the output."
+    ].join(" ");
+  }
+  return [
+    `${n[0].toUpperCase() + n.slice(1)} (${im.label}) is ${im.usage || "the main subject"}. Treat it as the exact source, not as inspiration.`,
+    "Use the real person or object from this photograph exactly as it appears.",
+    "Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged.",
+    "You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires.",
+    "Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details.",
+    recolours
+      ? "Only the colour treatment in the THEME section may change how it looks. Its shape, features and identity must stay exactly the same."
+      : "Keep its original, natural colours, skin tones and lighting."
+  ].join(" ");
+}
+
+function joinList(items) {
+  const xs = items.filter(Boolean);
+  if (xs.length <= 1) return xs[0] || "";
+  return `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+}
+
+// Builds a cache key payload string from the compiled prompt + model settings.
+export function cacheKeyPayload(compiled, { model, quality, imageHashes = [], variation = 0 }) {
+  return stableJson({ prompt: compiled.prompt, model, quality, images: imageHashes, variation });
+}
+
+export function stableJson(v) {
+  if (v === null || typeof v !== "object") return JSON.stringify(v ?? null);
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${stableJson(v[k])}`).join(",")}}`;
+}
+
+// Very small colour name lookup for common editorial palette values.
+function colorName(hex) {
+  const MAP = {
+    "#FF0000": "red", "#DC2626": "signal red", "#EF4444": "bright red",
+    "#0000FF": "blue", "#0047AB": "cobalt blue", "#1D4ED8": "strong blue", "#3B82F6": "sky blue",
+    "#000000": "black", "#1A1A1A": "near-black", "#FFFFFF": "white", "#F3EFE6": "cream",
+    "#FF6A13": "orange", "#F59E0B": "amber", "#10B981": "emerald green", "#7C3AED": "violet",
+    "#EC4899": "pink", "#D97706": "golden yellow", "#6B7280": "grey",
+    "#1D2B53": "deep navy", "#FACC15": "yellow", "#0F766E": "teal", "#111111": "black"
+  };
+  return MAP[hex.toUpperCase()] || null;
+}

@@ -1,0 +1,21 @@
+{
+  "id": "risograph_test",
+  "name": "Risograph",
+  "category": "Texture",
+  "scope": "element",
+  "description": "",
+  "affects": [],
+  "conflictsWith": [],
+  "prompt": "Apply a Risograph print texture at {depth_level} intensity.",
+  "params": [
+    {
+      "id": "depth_level",
+      "label": "Value",
+      "type": "text",
+      "defaultValue": "Low"
+    }
+  ],
+  "rules": [],
+  "version": 1,
+  "updatedAt": "2026-09-30T10:00:34.798Z"
+}

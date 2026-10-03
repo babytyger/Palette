@@ -1,0 +1,42 @@
+{
+  "id": "circular_blobs_test",
+  "name": "Circular Blobs",
+  "category": "Shapes",
+  "scope": "element",
+  "description": "Adds three circular blobs behind the main subject with varied placement on every generation.",
+  "affects": [],
+  "prompt": "Add exactly 3 circular blobs in {blob_color} behind the main subject. Randomly distribute their positions each time so the placement, spacing and overlap relationships vary between generations. Keep all three blobs fully behind the main subject and never obscure, distort or replace the subject or its important information.",
+  "params": [
+    {
+      "id": "blob_color",
+      "label": "Color",
+      "type": "color",
+      "defaultValue": "#000000",
+      "preview": "Display the selected blob color as a color swatch."
+    }
+  ],
+  "rules": [
+    {
+      "condition": "always",
+      "instruction": "Use exactly 3 circular blobs."
+    },
+    {
+      "condition": "always",
+      "instruction": "Randomize the placement of all three blobs on every generation."
+    },
+    {
+      "condition": "always",
+      "instruction": "Keep all blobs behind the main subject."
+    },
+    {
+      "condition": "always",
+      "instruction": "Use the selected color for all three blobs."
+    },
+    {
+      "condition": "always",
+      "instruction": "Keep the blobs circular with no transformation into other shapes."
+    }
+  ],
+  "version": 1,
+  "updatedAt": "2026-09-30T11:59:55.791Z"
+}

@@ -1,0 +1,54 @@
+{
+  "cacheKey": "282d27112a2b60b1b33906a165b0c5e21a79f10049e76bc3191c8362a1ee1c5c",
+  "imageUrl": "/images/282d27112a2b60b1b33906a165b0c5e21a79f10049e76bc3191c8362a1ee1c5c.png",
+  "mime": "image/png",
+  "createdAt": "2026-10-03T17:37:57.494Z",
+  "templateId": "circular_editorial_montage",
+  "prompt": "Create a square background plate. Do not paint the subject from the attached photograph. No person, face, product, or object from that photo may appear. The subject is composited afterwards as its own layer. Do not add accent colours, geometric highlights, diagrams, or component graphics. Those are separate layers. Leave open space in the layout for the subject.",
+  "parts": [
+    {
+      "paramId": "subjectImage1",
+      "label": "Subject image 1",
+      "type": "image",
+      "hasFile": true,
+      "index": null,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 1"
+    },
+    {
+      "paramId": "subjectImage2",
+      "label": "Subject image 2",
+      "type": "image",
+      "hasFile": true,
+      "index": null,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 2"
+    },
+    {
+      "paramId": "subjectImage3",
+      "label": "Subject image 3",
+      "type": "image",
+      "hasFile": true,
+      "index": null,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image 3"
+    },
+    {
+      "paramId": "sideCircleTint",
+      "label": "Side circle tint",
+      "type": "color",
+      "rawValue": "#E03013",
+      "resolvedPhrase": "#E03013"
+    }
+  ],
+  "components": [
+    "halftone_test",
+    "circular_blobs_test"
+  ],
+  "warnings": [
+    "\"Side circle tint\" has no value. Using default (#E03013)."
+  ],
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "mock": false
+}

@@ -1,0 +1,44 @@
+{
+  "cacheKey": "cadf1d3fd80ab811a8653b6dfffebd97bec7f66b2b7c19ee66a8229cca72bb88",
+  "imageUrl": "/images/cadf1d3fd80ab811a8653b6dfffebd97bec7f66b2b7c19ee66a8229cca72bb88.png",
+  "mime": "image/png",
+  "createdAt": "2026-10-03T17:30:22.403Z",
+  "templateId": "retro_circular_editorial_collage",
+  "prompt": "ATTACHED IMAGES\n2 images are attached to this request, in this order. They are referred to below by number.\nImage 1 (Subject image) is the uploaded subject. Do not paint this subject into the output. It is placed afterwards as its own layer.\n\nImage 2 (Background image) is the uploaded subject. Do not paint this subject into the output. It is placed afterwards as its own layer.\n\nCreate a square background plate. Do not paint the subject from the attached photograph. No person, face, product, or object from that photo may appear. The subject is composited afterwards as its own layer. Do not add accent colours, geometric highlights, diagrams, or component graphics. Those are separate layers. Leave open space in the layout for the subject.",
+  "parts": [
+    {
+      "paramId": "subjectImage",
+      "label": "Subject image",
+      "type": "image",
+      "hasFile": true,
+      "index": 1,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject image (image 1)"
+    },
+    {
+      "paramId": "backgroundImage",
+      "label": "Background image",
+      "type": "image",
+      "hasFile": true,
+      "index": 2,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached background image (image 2)"
+    },
+    {
+      "paramId": "highlightCircleColor",
+      "label": "Highlight circle color",
+      "type": "color",
+      "rawValue": "#E03013",
+      "resolvedPhrase": "#E03013"
+    }
+  ],
+  "components": [
+    "halftone_test",
+    "line_cut_test",
+    "text_line"
+  ],
+  "warnings": [],
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "mock": false
+}

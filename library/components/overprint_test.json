@@ -1,0 +1,13 @@
+{
+  "id": "overprint_test",
+  "name": "Overprint",
+  "category": "Texture",
+  "scope": "element",
+  "description": "",
+  "affects": [],
+  "prompt": "Apply an authentic overprint texture to the affected element. Simulate layered printed inks overlapping on paper, creating subtle color mixing, ink density variation, slight registration shifts and areas where underlying colors visibly interact. Preserve the original shape, details, colors and information while giving the element a physical layered-print appearance.",
+  "params": [],
+  "rules": [],
+  "version": 1,
+  "updatedAt": "2026-09-30T10:52:18.112Z"
+}

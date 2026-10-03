@@ -1,0 +1,21 @@
+{
+  "id": "halftone_test",
+  "name": "Halftone",
+  "category": "Texture",
+  "scope": "element",
+  "description": "",
+  "affects": [],
+  "conflictsWith": [],
+  "prompt": "Apply a halftone texture pattern at {depth_level} intensity. Use a controlled grid of dots that converts tonal areas into halftone dot patterns while preserving the original shape, details, colors and information of the affected element.",
+  "params": [
+    {
+      "id": "depth_level",
+      "label": "Value",
+      "type": "text",
+      "defaultValue": "Low"
+    }
+  ],
+  "rules": [],
+  "version": 1,
+  "updatedAt": "2026-09-30T10:00:46.872Z"
+}

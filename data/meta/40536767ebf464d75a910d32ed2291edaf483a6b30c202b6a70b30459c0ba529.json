@@ -1,0 +1,46 @@
+{
+  "cacheKey": "40536767ebf464d75a910d32ed2291edaf483a6b30c202b6a70b30459c0ba529",
+  "imageUrl": "/images/40536767ebf464d75a910d32ed2291edaf483a6b30c202b6a70b30459c0ba529.png",
+  "mime": "image/png",
+  "createdAt": "2026-09-28T13:53:09.651Z",
+  "templateId": "breaking_news_graphic",
+  "prompt": "ATTACHED IMAGES\nOne image is attached to this request. It is referred to below as image 1.\nImage 1 (Subject Image) is the main subject of the graphic. Treat it as the exact source, not as inspiration. Use the real person or object from this photograph exactly as it appears. Keep the identity, face and facial structure, expression, hairstyle, body shape and proportions, pose, clothing, accessories and every distinguishing detail unchanged. You may cut it out from its original background, scale it evenly, and crop or position it as the layout requires. Do not distort, stretch, squash, warp, reshape, redraw, retouch, beautify, age or de-age it. Do not replace it with a similar-looking person or object, and do not add or remove details. Keep its original, natural colours, skin tones and lighting.\n\nCreate a bold editorial breaking-news social graphic.\n\nSUBJECT\nUse the attached subject photograph (image 1) as the primary subject, placed on the left half of the composition. Keep the subject photographic and naturally coloured. Do not distort, stylise or recolour the subject.\n\nACCENT COLOUR\nApply the selected accent colour (signal red (#DC2626)) to the bold geometric graphic elements in the background: a large vertical bar on the right, one or two horizontal rule lines, and a strong rectangular block behind the subject's head.\n\nSTYLE\nUse a crisp Swiss-modernist graphic style with clean rules, strong geometric shapes, and disciplined negative space.\n\nSPACE\nLeave the right third of the composition free of the subject. This area will carry text overlaid in post-production.\n\nFORMAT\nTall vertical 4:5 composition.\n\nAVOID\nDo not add any text, numbers, captions, logos or watermarks.\n\nADDITIONAL RULES\n- Use the subject from the attached image exactly as photographed. Do not distort, stretch, warp, redraw, retouch or replace it, and do not change its identity, features or proportions.",
+  "parts": [
+    {
+      "paramId": "subjectImage",
+      "label": "Subject Image",
+      "type": "image",
+      "hasFile": true,
+      "index": 1,
+      "fidelity": "exact",
+      "resolvedPhrase": "the attached subject photograph (image 1)"
+    },
+    {
+      "paramId": "accentColor",
+      "label": "Accent Colour",
+      "type": "color",
+      "rawValue": "#DC2626",
+      "resolvedPhrase": "the selected accent colour (signal red (#DC2626))"
+    },
+    {
+      "paramId": "style",
+      "label": "Visual Style",
+      "type": "select",
+      "rawValue": "swiss_modern",
+      "resolvedPhrase": "Use a crisp Swiss-modernist graphic style with clean rules, strong geometric shapes, and disciplined negative space."
+    }
+  ],
+  "components": [],
+  "size": "1024x1536",
+  "exportSize": [
+    1080,
+    1350
+  ],
+  "warnings": [
+    "\"Accent Colour\" has no value. Using default (#DC2626).",
+    "\"Visual Style\" has no value. Using default (swiss_modern)."
+  ],
+  "model": "gpt-image-2",
+  "quality": "medium",
+  "mock": false
+}

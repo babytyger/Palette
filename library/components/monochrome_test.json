@@ -1,0 +1,13 @@
+{
+  "id": "monochrome_test",
+  "name": "Monochrome",
+  "category": "Colour",
+  "scope": "element",
+  "description": "",
+  "affects": [],
+  "prompt": "Convert the affected element to a fixed black-and-white monochrome treatment. Remove all color while preserving the original shape, details, lighting, shadows, highlights, textures and information.",
+  "params": [],
+  "rules": [],
+  "version": 1,
+  "updatedAt": "2026-09-30T10:51:39.164Z"
+}

@@ -1,0 +1,42 @@
+{
+  "id": "line_cut_test",
+  "name": "Line Cut",
+  "category": "Shapes",
+  "scope": "element",
+  "description": "Adds scattered line cuts across both the foreground and background of the composition.",
+  "affects": [],
+  "prompt": "Add scattered line cuts throughout the composition. Place some lines in front of the main subject and others across the background image, creating varied depth and visual interruption. Randomize the position, direction, length and spacing of the lines on every generation while keeping the composition balanced.",
+  "params": [
+    {
+      "id": "line_color",
+      "label": "Color",
+      "type": "color",
+      "defaultValue": "#000000",
+      "preview": "Display the selected line color as a color swatch."
+    }
+  ],
+  "rules": [
+    {
+      "condition": "always",
+      "instruction": "Scatter line cuts across both foreground and background areas."
+    },
+    {
+      "condition": "always",
+      "instruction": "Randomize line placement, direction, length and spacing on every generation."
+    },
+    {
+      "condition": "always",
+      "instruction": "Allow some lines to overlap the main subject while others remain behind it."
+    },
+    {
+      "condition": "always",
+      "instruction": "Keep the lines visually distinct and avoid forming a regular grid or repetitive pattern."
+    },
+    {
+      "condition": "always",
+      "instruction": "Use the selected color for all line cuts."
+    }
+  ],
+  "version": 1,
+  "updatedAt": "2026-09-30T12:25:38.740Z"
+}
