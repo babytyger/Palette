@@ -5,7 +5,7 @@ import "dotenv/config";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { compilePrompt, cacheKeyPayload, validateTemplate, validateComponent } from "./src/compiler.js";
+import { compilePrompt, cacheKeyPayload, validateTemplate, validateComponent, paramsFromConfig } from "./src/compiler.js";
 import { loadTemplates, getTemplate, saveTemplate, deleteTemplate, loadComponents, saveComponent, deleteComponent } from "./src/registry.js";
 import { createJob, updateJob, getJob, listJobs, deleteJobs } from "./src/jobs.js";
 import { generateImage, MODEL, QUALITY, MOCK } from "./src/imageClient.js";
@@ -155,7 +155,7 @@ app.post("/api/generate", wrap(async (req, res) => {
   }
 
   // Collect image files in param order
-  const imageParams = template.params.filter((p) => p.type === "image");
+  const imageParams = paramsFromConfig(template.config).filter((p) => p.type === "image");
   const images = imageParams.map((p) => ({
     label: p.providerImageName || p.label || p.id,
     dataUrl: values[p.id] || values[p.configPath] || null

@@ -37,6 +37,7 @@ export type Template = {
   description?: string;
   category?: string;
   systemPrompt?: string;
+  config?: Record<string, string>;
   params?: Param[];
   referenceImage?: string;
   archived?: boolean;
@@ -55,6 +56,8 @@ export type ComponentDef = {
   scope: string;
   description?: string;
   group?: string;
+  systemPrompt?: string;
+  config?: Record<string, string>;
   prompt?: string;
   params?: Param[];
   rules?: any[];

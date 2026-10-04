@@ -6,16 +6,11 @@
   "description": "",
   "affects": [],
   "conflictsWith": [],
-  "prompt": "Apply a natural paper texture at {depth_level} intensity. Add subtle paper grain, fibers, fine surface irregularities and gentle tonal variation while preserving the original shape, details, colors and information of the affected element.",
-  "params": [
-    {
-      "id": "depth_level",
-      "label": "Value",
-      "type": "text",
-      "defaultValue": "Low"
-    }
-  ],
   "rules": [],
-  "version": 1,
-  "updatedAt": "2026-09-30T10:02:34.493Z"
+  "version": 2,
+  "updatedAt": "2026-10-04T08:27:31.659Z",
+  "systemPrompt": "Apply a natural paper texture at {{depth_level}} intensity. Add subtle paper grain, fibers, fine surface irregularities and gentle tonal variation while preserving the original shape, details, colors and information of the affected element.",
+  "config": {
+    "depth_level": "depth_level"
+  }
 }

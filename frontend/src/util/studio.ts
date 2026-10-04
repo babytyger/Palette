@@ -12,7 +12,7 @@ const CONTROL_TYPES = ["color", "select", "multiselect", "slider", "switch"];
 const defaultStudioValues = (template: Template) => {
   const values: Record<string, any> = {};
   for (const p of template.params || []) {
-    if (CONTROL_TYPES.includes(p.type)) values[p.id] = defaultParamValue(p);
+    if (CONTROL_TYPES.includes(p.type) || (p.type === "text" && p.defaultValue)) values[p.id] = defaultParamValue(p);
   }
   return values;
 };

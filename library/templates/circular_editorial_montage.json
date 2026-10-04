@@ -3,33 +3,13 @@
   "name": "Circular Editorial Montage",
   "description": "1:1 overlapping circular photomontage with three subjects.",
   "systemPrompt": "Create a fixed 1:1 square conceptual editorial photomontage using {{subjectImage1}}, {{subjectImage2}}, and {{subjectImage3}}...\n\nThe final result must read as a layered geometric collage...",
-  "params": [
-    {
-      "id": "subjectImage1",
-      "label": "Subject image 1",
-      "type": "image",
-      "fidelity": "exact"
-    },
-    {
-      "id": "subjectImage2",
-      "label": "Subject image 2",
-      "type": "image",
-      "fidelity": "exact"
-    },
-    {
-      "id": "subjectImage3",
-      "label": "Subject image 3",
-      "type": "image",
-      "fidelity": "exact"
-    },
-    {
-      "id": "sideCircleTint",
-      "label": "Side circle tint",
-      "type": "color",
-      "defaultHex": "#E03013"
-    }
-  ],
-  "version": 1,
+  "version": 2,
   "referenceImage": "/references/circular_editorial_montage.png",
-  "updatedAt": "2026-10-03T08:13:17.483Z"
+  "updatedAt": "2026-10-04T10:30:52.127Z",
+  "config": {
+    "subject_image": "subjectImage1",
+    "subject_image_2": "subjectImage2",
+    "subject_image_3": "subjectImage3"
+  },
+  "archived": true
 }

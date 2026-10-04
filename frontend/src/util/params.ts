@@ -220,21 +220,54 @@ const promptPlaceholders = (text: string) => {
 };
 
 /**
- * Adds missing params inferred from placeholders in the prompt.
+ * Builds a config key for a placeholder that is missing from config.
+ *
+ * @param id - Placeholder name
+ * @param taken - Keys already used
+ * @returns Snake-case config key
+ */
+const configKeyForToken = (id: string, taken: Set<string>) => {
+  let key = id.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+  if (/tone|tint|colou?r/.test(key) && !key.endsWith("_color")) {
+    key = `${key.replace(/_(tone|tint|colou?r)$/, "")}_color`;
+  }
+  if (/image/.test(key) && !/_image(?:_|$)/.test(key)) {
+    key = key.includes("background") ? "background_image" : "subject_image";
+  }
+  const base = key || "param";
+  let next = base;
+  let n = 2;
+  while (taken.has(next)) {
+    next = `${base}_${n}`;
+    n += 1;
+  }
+  return next;
+};
+
+/**
+ * Adds config entries for {{placeholders}} that the component prompt uses.
  *
  * @param def - Component definition
- * @returns Whether params were added
+ * @returns Whether config entries were added
  */
-const ensureParamsForPrompt = (def: ComponentDef) => {
+const ensureConfigForPrompt = (def: ComponentDef) => {
   if (!def || typeof def !== "object") return false;
-  const params = Array.isArray(def.params) ? def.params : (def.params = []);
+  if (!def.systemPrompt && def.prompt) def.systemPrompt = def.prompt;
+  const config: Record<string, string> = { ...(def.config || {}) };
+  const taken = new Set(Object.keys(config));
+  const tokens = new Set(Object.values(config));
   let added = false;
-  for (const id of promptParamIds(def.prompt)) {
-    if (params.some((p) => p.id === id)) continue;
-    const label = labelFromParamId(id);
-    params.push(applyParamFunction({ id, label, type: "text" }, inferParamFunction({ id, label, type: "text" })));
+  for (const id of promptPlaceholders(def.systemPrompt || "")) {
+    if (tokens.has(id)) continue;
+    const key = configKeyForToken(id, taken);
+    config[key] = id;
+    taken.add(key);
+    tokens.add(id);
     added = true;
   }
+  def.config = config;
+  delete def.params;
+  delete def.prompt;
   return added;
 };
 
@@ -345,6 +378,153 @@ const pickStatus = (
 };
 
 /**
+ * True when a value is a map of snake_case keys to placeholder strings.
+ *
+ * @param value - Candidate config
+ * @returns Whether every entry is a config pair
+ */
+const isConfigMap = (value: unknown): value is Record<string, string> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entries = Object.entries(value);
+  return entries.length > 0 && entries.every(([key, token]) => /^[a-z][a-z0-9_]*$/.test(key) && typeof token === "string");
+};
+
+/**
+ * Balanced `{...}` slices in source order.
+ *
+ * @param text - Editor text
+ * @returns Object source strings
+ */
+const jsonObjectsIn = (text: string) => {
+  const found: string[] = [];
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] !== "{") continue;
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    for (let j = i; j < text.length; j += 1) {
+      const c = text[j];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === "\\") esc = true;
+        else if (c === "\"") inStr = false;
+        continue;
+      }
+      if (c === "\"") inStr = true;
+      else if (c === "{") depth += 1;
+      else if (c === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          found.push(text.slice(i, j + 1));
+          i = j;
+          break;
+        }
+      }
+    }
+  }
+  return found;
+};
+
+type PromptDraft = {
+  title: string;
+  name: string;
+  id: string;
+  systemPrompt: string;
+  config: Record<string, string>;
+  configError: string;
+  parsed: boolean;
+};
+
+/**
+ * Reads config from a template object or from a prompt plus CONFIG block.
+ *
+ * @param raw - Template editor text
+ * @returns Parsed config, or null when the field is empty
+ */
+const readPromptDraft = (raw: string): PromptDraft | null => {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+  try {
+    const def = JSON.parse(text) as Record<string, unknown>;
+    if (def && typeof def === "object" && !Array.isArray(def)) {
+      const config = isConfigMap(def.config) ? def.config : isConfigMap(def) ? def : {};
+      const name = typeof def.name === "string" ? def.name : "";
+      const id = typeof def.id === "string" ? def.id : "";
+      return {
+        title: [name, id].filter(Boolean).join(" · "),
+        name,
+        id,
+        systemPrompt: typeof def.systemPrompt === "string" ? def.systemPrompt : "",
+        config,
+        configError: "",
+        parsed: true
+      };
+    }
+  } catch {
+    // A prompt with a CONFIG block is not one JSON document.
+  }
+  const objects = jsonObjectsIn(text);
+  for (let i = objects.length - 1; i >= 0; i -= 1) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(objects[i]);
+    } catch {
+      continue;
+    }
+    const record = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+    const config = record && isConfigMap(record.config) ? record.config : isConfigMap(parsed) ? parsed : null;
+    if (!config) continue;
+    const cut = text.lastIndexOf(objects[i]);
+    return {
+      title: "",
+      name: "",
+      id: "",
+      systemPrompt: text.slice(0, cut).replace(/\bCONFIG\s*$/i, "").trim(),
+      config,
+      configError: "",
+      parsed: false
+    };
+  }
+  const configError = /(?:^|\n)\s*CONFIG\s*(?:\n|$)/i.test(text) ? "The CONFIG block is not valid JSON." : "";
+  return { title: "", name: "", id: "", systemPrompt: text, config: {}, configError, parsed: false };
+};
+
+/**
+ * Prints a template as prompt text plus a CONFIG block.
+ *
+ * @param tpl - Template prompt and config
+ * @returns Editor document
+ */
+const formatPromptDocument = (tpl: { systemPrompt?: string; config?: Record<string, string> | null }) => {
+  const prompt = String(tpl?.systemPrompt || "").replace(/\s+$/, "");
+  const config = tpl?.config && typeof tpl.config === "object" && !Array.isArray(tpl.config) ? tpl.config : {};
+  const wrapped = Object.fromEntries(Object.entries(config).map(([key, token]) => {
+    const bare = String(token ?? "").trim().replace(/^\{\{/, "").replace(/\}\}$/, "").trim();
+    return [key, bare ? `{{${bare}}}` : ""];
+  }));
+  const block = `CONFIG\n${JSON.stringify(wrapped, null, 2)}\n`;
+  return prompt ? `${prompt}\n\n${block}` : block;
+};
+
+/**
+ * Stores config values as placeholder names, without {{ }}.
+ *
+ * @param config - Config map from the editor
+ * @returns Bare placeholder names
+ */
+const bareConfigTokens = (config: Record<string, string>) => Object.fromEntries(
+  Object.entries(config).map(([key, token]) => [key, String(token ?? "").trim().replace(/^\{\{/, "").replace(/\}\}$/, "").trim()])
+);
+
+/**
+ * Builds a template id from a display name.
+ *
+ * @param name - Theme name
+ * @returns Lowercase id
+ */
+const templateIdFromName = (name: string) => String(name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80);
+
+/**
  * Blank component used by New component.
  */
 const starterComponent = (): ComponentDef => ({
@@ -356,9 +536,9 @@ const starterComponent = (): ComponentDef => ({
   group: "",
   affects: [],
   conflictsWith: [],
-  prompt: "",
+  systemPrompt: "",
   overrideNote: "",
-  params: [],
+  config: {},
   rules: []
 });
 
@@ -375,7 +555,11 @@ export {
   paramForControl,
   promptParamIds,
   promptPlaceholders,
-  ensureParamsForPrompt,
+  readPromptDraft,
+  formatPromptDocument,
+  bareConfigTokens,
+  templateIdFromName,
+  ensureConfigForPrompt,
   paramQuickRefDetail,
   isBackgroundImageParam,
   compList,

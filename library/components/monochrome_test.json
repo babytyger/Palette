@@ -5,9 +5,9 @@
   "scope": "element",
   "description": "",
   "affects": [],
-  "prompt": "Convert the affected element to a fixed black-and-white monochrome treatment. Remove all color while preserving the original shape, details, lighting, shadows, highlights, textures and information.",
-  "params": [],
   "rules": [],
-  "version": 1,
-  "updatedAt": "2026-09-30T10:51:39.164Z"
+  "version": 2,
+  "updatedAt": "2026-10-04T08:27:31.659Z",
+  "systemPrompt": "Convert the affected element to a fixed black-and-white monochrome treatment. Remove all color while preserving the original shape, details, lighting, shadows, highlights, textures and information.",
+  "config": {}
 }

@@ -15,6 +15,143 @@ export const COMPONENT_SCOPES = ["theme", "element", "rule"];
 export const IMAGE_FIDELITY = ["exact", "source", "style"];
 export const COMPONENT_CATEGORIES = ["Colour", "Texture", "Shape", "Background", "Layout", "Subject", "Rules"];
 
+const TOKEN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+const CONFIG_KEY = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * Reads a config value as a placeholder name.
+ *
+ * @param token - Raw config value, with or without {{ }}
+ * @returns Placeholder id
+ */
+const normalizeConfigToken = (token) => String(token ?? "").trim().replace(/^\{\{/, "").replace(/\}\}$/, "").trim();
+
+/**
+ * Turns a config key into a studio label.
+ *
+ * @param key - Snake-case config key
+ * @returns Title-case label
+ */
+const labelFromConfigKey = (key) => String(key || "")
+  .replace(/_/g, " ")
+  .replace(/\b\w/g, (c) => c.toUpperCase());
+
+/**
+ * True when a config key names an uploaded image.
+ *
+ * @param key - Config key
+ * @returns Whether the control is an image
+ */
+const isImageConfigKey = (key) => /(?:^|_)image(?:_|$)/.test(key);
+
+/**
+ * Builds one studio control from a config entry.
+ *
+ * The key is the control kind. The value is the {{placeholder}} in the prompt.
+ *
+ * @param key - Config key, such as subject_image or highlight_color
+ * @param token - Placeholder name used in the prompt
+ * @returns Param definition the studio and compiler already understand
+ */
+const paramFromConfigEntry = (key, token) => {
+  const id = normalizeConfigToken(token);
+  const label = isImageConfigKey(key) && /(?:^|_)bg(?:_|$)/.test(key) && !/background/.test(key)
+    ? "Background image"
+    : labelFromConfigKey(key);
+  if (isImageConfigKey(key)) return { id, label, type: "image", fidelity: "exact" };
+  if (/_color$/.test(key)) return { id, label, type: "color", defaultHex: "#111111" };
+  if (/_level$/.test(key)) return { id, label, type: "text", defaultValue: "Low" };
+  if (/_density$/.test(key)) return { id, label, type: "text", defaultValue: "Medium" };
+  return { id, label, type: "text", defaultValue: "" };
+};
+
+/**
+ * Derives studio controls from a prompt config object.
+ *
+ * @param config - Map of control key to placeholder name
+ * @returns Controls in config order
+ */
+const paramsFromConfig = (config) => {
+  if (!config || typeof config !== "object" || Array.isArray(config)) return [];
+  return Object.entries(config).map(([key, token]) => paramFromConfigEntry(key, token));
+};
+
+/**
+ * Unique {{placeholder}} names in a prompt, in first-seen order.
+ *
+ * @param text - Prompt text
+ * @returns Placeholder ids
+ */
+const promptTokens = (text) => {
+  const seen = new Set();
+  const out = [];
+  for (const match of String(text || "").matchAll(/\{\{([a-zA-Z0-9_]+)\}\}/g)) {
+    if (seen.has(match[1])) continue;
+    seen.add(match[1]);
+    out.push(match[1]);
+  }
+  return out;
+};
+
+/**
+ * Checks that config keys, placeholder names, and the prompt agree.
+ *
+ * @param config - Prompt config
+ * @param promptText - systemPrompt text
+ * @param options.allowImage - Templates may declare image keys
+ * @returns Plain-English errors
+ */
+const validateConfig = (config, promptText, { allowImage = true } = {}) => {
+  const errors = [];
+  if (config == null || typeof config !== "object" || Array.isArray(config)) {
+    return ["config must be an object of control keys to placeholder names."];
+  }
+  const seen = new Set();
+  for (const [key, raw] of Object.entries(config)) {
+    const token = normalizeConfigToken(raw);
+    if (!CONFIG_KEY.test(key)) errors.push(`Config key "${key}" must be lowercase snake_case.`);
+    if (typeof raw !== "string" || !TOKEN.test(token)) {
+      errors.push(`Config "${key}" must name a placeholder like subjectImage.`);
+      continue;
+    }
+    if (seen.has(token)) errors.push(`Placeholder "${token}" is used by more than one config key.`);
+    seen.add(token);
+    if (!allowImage && isImageConfigKey(key)) errors.push(`Config "${key}": components cannot take image inputs.`);
+  }
+  const placeholders = promptTokens(promptText);
+  for (const ph of placeholders) {
+    if (!seen.has(ph)) errors.push(`The prompt uses {{${ph}}} but config does not name that placeholder.`);
+  }
+  for (const token of seen) {
+    if (!placeholders.includes(token)) errors.push(`Config names {{${token}}} but the prompt does not use it.`);
+  }
+  return errors;
+};
+
+/**
+ * Attaches derived controls so the studio can read template.params.
+ *
+ * @param tpl - Template from disk or the editor
+ * @returns Template with params derived from config
+ */
+const hydrateTemplate = (tpl) => {
+  if (!tpl || typeof tpl !== "object") return tpl;
+  return { ...tpl, params: paramsFromConfig(tpl.config) };
+};
+
+/**
+ * Attaches derived controls and keeps systemPrompt as the component text.
+ *
+ * @param comp - Component from disk or the editor
+ * @returns Component with params derived from config
+ */
+const hydrateComponent = (comp) => {
+  if (!comp || typeof comp !== "object") return comp;
+  const systemPrompt = typeof comp.systemPrompt === "string" ? comp.systemPrompt : (comp.prompt || "");
+  const config = comp.config && typeof comp.config === "object" && !Array.isArray(comp.config) ? comp.config : {};
+  return { ...comp, systemPrompt, config, params: paramsFromConfig(config) };
+};
+
 // Validates a template definition. Returns an array of plain-English errors.
 export function validateTemplate(tpl) {
   const errors = [];
@@ -22,7 +159,9 @@ export function validateTemplate(tpl) {
   if (!tpl.id || !/^[a-z0-9_-]{2,80}$/.test(tpl.id)) errors.push("id must use lowercase letters, numbers, underscores or hyphens.");
   if (!tpl.name) errors.push("Template needs a name.");
   if (!tpl.systemPrompt || typeof tpl.systemPrompt !== "string") errors.push("Template needs a systemPrompt.");
-  if (!Array.isArray(tpl.params)) errors.push("Template needs a params array.");
+  if (tpl.config == null || typeof tpl.config !== "object" || Array.isArray(tpl.config)) {
+    errors.push("Template needs a config object.");
+  }
   if (tpl.locks != null && !Array.isArray(tpl.locks)) errors.push("locks must be an array of tags, e.g. [\"subject_colour\"].");
   if (tpl.referenceImage != null && tpl.referenceImage !== "") {
     if (typeof tpl.referenceImage !== "string") errors.push("referenceImage must be a string.");
@@ -30,39 +169,7 @@ export function validateTemplate(tpl) {
       errors.push("referenceImage must be an uploaded image.");
     }
   }
-  errors.push(...validateParams(tpl.params || [], tpl.systemPrompt || ""));
-  return errors;
-}
-
-// Shared checks for a params array and the prompt that uses it.
-function validateParams(params, promptText, { allowImage = true } = {}) {
-  const errors = [];
-  const seen = new Set();
-  for (const p of params) {
-    if (!p.id || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(p.id)) errors.push(`Param "${p.id || "?"}" has an invalid id.`);
-    if (seen.has(p.id)) errors.push(`Param id "${p.id}" appears more than once.`);
-    seen.add(p.id);
-    if (!p.label) errors.push(`Param "${p.id}" needs a label.`);
-    if (!PARAM_TYPES.includes(p.type)) errors.push(`Param "${p.id}" type must be one of: ${PARAM_TYPES.join(", ")}.`);
-    if (!allowImage && p.type === "image") errors.push(`Param "${p.id}": components cannot take image inputs.`);
-    if (p.type === "image" && p.fidelity != null && !IMAGE_FIDELITY.includes(p.fidelity)) {
-      errors.push(`Param "${p.id}" fidelity must be one of: ${IMAGE_FIDELITY.join(", ")}.`);
-    }
-    if ((p.type === "select" || p.type === "multiselect") && (!Array.isArray(p.options) || !p.options.length)) {
-      errors.push(`Param "${p.id}" is a ${p.type} but has no options.`);
-    }
-    if (p.type === "slider" && !(Number(p.min) < Number(p.max))) {
-      errors.push(`Param "${p.id}" slider min must be less than max.`);
-    }
-  }
-
-  // Every {{placeholder}} in the prompt must map to a param id
-  const placeholders = [...promptText.matchAll(/\{\{([a-zA-Z0-9_]+)\}\}/g)].map((m) => m[1]);
-  for (const ph of placeholders) {
-    if (!params.some((p) => p.id === ph)) {
-      errors.push(`The prompt uses {{${ph}}} but there is no param with that id.`);
-    }
-  }
+  errors.push(...validateConfig(tpl.config, tpl.systemPrompt || "", { allowImage: true }));
   return errors;
 }
 
@@ -73,12 +180,12 @@ export function validateComponent(c) {
   if (!c.id || !/^[a-z0-9_-]{2,80}$/.test(c.id)) errors.push("id must use lowercase letters, numbers, underscores or hyphens.");
   if (!c.name) errors.push("Component needs a name.");
   if (!COMPONENT_SCOPES.includes(c.scope)) errors.push(`scope must be one of: ${COMPONENT_SCOPES.join(", ")}.`);
-  if (!c.prompt || typeof c.prompt !== "string") errors.push("Component needs a prompt.");
-  if (c.params != null && !Array.isArray(c.params)) errors.push("params must be an array.");
+  if (!c.systemPrompt || typeof c.systemPrompt !== "string") errors.push("Component needs a systemPrompt.");
+  if (c.config == null || typeof c.config !== "object" || Array.isArray(c.config)) errors.push("Component needs a config object.");
   for (const key of ["rules", "affects", "conflictsWith"]) {
     if (c[key] != null && !Array.isArray(c[key])) errors.push(`${key} must be an array.`);
   }
-  errors.push(...validateParams(c.params || [], c.prompt || "", { allowImage: false }));
+  errors.push(...validateConfig(c.config, c.systemPrompt || "", { allowImage: false }));
   return errors;
 }
 
@@ -161,7 +268,7 @@ function fillPlaceholders(text, resolvedValues) {
 export function compileComponent(component, values = {}) {
   const resolvedValues = {};
   const parts = [];
-  for (const p of component.params || []) {
+  for (const p of paramsFromConfig(component.config)) {
     const raw = values[p.id] ?? defaultParamValue(p);
     const phrase = resolveParam(p, raw, component.paramPromptFragments || {});
     resolvedValues[p.id] = phrase;
@@ -173,7 +280,7 @@ export function compileComponent(component, values = {}) {
     name: component.name,
     scope: component.scope,
     affects: component.affects || [],
-    text: fill(component.prompt).trim(),
+    text: fill(component.systemPrompt).trim(),
     overrideNote: component.overrideNote ? fill(component.overrideNote).trim() : "",
     rules: (component.rules || []).map(ruleToText).map(fill).map((r) => r.trim()).filter(Boolean),
     parts
@@ -245,14 +352,15 @@ export function compilePrompt(template, values = {}, options = {}) {
 
   // Attached images are sent to the API in param order. Optional images
   // with no upload are skipped, so number only the ones that will be sent.
-  const imageParams = template.params.filter((p) => p.type === "image");
+  const params = paramsFromConfig(template.config);
+  const imageParams = params.filter((p) => p.type === "image");
   const imageValue = (p) => values[p.id] ?? values[p.configPath] ?? null;
   const sentImages = imageParams.filter((p) => imageValue(p) || !p.optional);
   const imageIndex = Object.fromEntries(sentImages.map((p, i) => [p.id, i + 1]));
   const missingImages = imageParams.filter((p) => !p.optional && !imageValue(p)).map((p) => p.label || p.id);
 
   // Resolve every param
-  for (const param of template.params) {
+  for (const param of params) {
     const userValue = values[param.id] ?? values[param.configPath] ?? null;
     const isImage = param.type === "image";
 
@@ -418,6 +526,8 @@ function imageInstruction(im, recolours) {
       : "Keep its original, natural colours, skin tones and lighting."
   ].join(" ");
 }
+
+export { paramsFromConfig, hydrateTemplate, hydrateComponent };
 
 function joinList(items) {
   const xs = items.filter(Boolean);

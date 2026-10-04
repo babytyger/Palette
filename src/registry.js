@@ -4,7 +4,7 @@
 // Files are read fresh on every request, so edits apply without restart.
 import fs from "node:fs/promises";
 import path from "node:path";
-import { validateTemplate, validateComponent } from "./compiler.js";
+import { validateTemplate, validateComponent, hydrateTemplate, hydrateComponent } from "./compiler.js";
 import { resolveReferenceImage, deleteReferenceImages } from "../util/referenceImage.js";
 
 const LIB = path.resolve(process.env.LIBRARY_DIR || "library");
@@ -17,7 +17,7 @@ export async function loadTemplates() {
   for (const f of (await fs.readdir(TMPL_DIR)).filter((x) => x.endsWith(".json"))) {
     try {
       const d = JSON.parse(await fs.readFile(path.join(TMPL_DIR, f), "utf8"));
-      out[d.id] = d;
+      out[d.id] = hydrateTemplate(d);
     } catch (e) { console.warn(`Skipped ${f}: ${e.message}`); }
   }
   return out;
@@ -27,18 +27,29 @@ export async function getTemplate(id) {
   return (await loadTemplates())[id] || null;
 }
 
+const hasConfig = (value) => value && typeof value === "object" && !Array.isArray(value);
+
 export async function saveTemplate(tpl) {
-  const errors = validateTemplate(tpl);
-  if (errors.length) throw Object.assign(new Error(errors.join(" ")), { status: 400, errors });
   const existing = await getTemplate(tpl.id);
-  const referenceImage = await resolveReferenceImage(tpl.id, tpl.referenceImage);
-  const changed = !existing || JSON.stringify([existing.systemPrompt, existing.params]) !== JSON.stringify([tpl.systemPrompt, tpl.params]);
-  const saved = { ...tpl, version: existing ? (existing.version || 1) + (changed ? 1 : 0) : 1, updatedAt: new Date().toISOString() };
+  const next = { ...(existing || {}), ...tpl };
+  delete next.params;
+  // Archive and restore send the theme already on screen. Keep the stored prompt
+  // when that copy has no config, so the flag can change without rewriting the prompt.
+  if (!hasConfig(tpl.config) && existing && hasConfig(existing.config)) {
+    next.config = existing.config;
+    next.systemPrompt = existing.systemPrompt;
+  }
+  const errors = validateTemplate(next);
+  if (errors.length) throw Object.assign(new Error(errors.join(" ")), { status: 400, errors });
+  const referenceImage = await resolveReferenceImage(tpl.id, next.referenceImage);
+  const changed = !existing || JSON.stringify([existing.systemPrompt, existing.config]) !== JSON.stringify([next.systemPrompt, next.config]);
+  const saved = { ...next, version: existing ? (existing.version || 1) + (changed ? 1 : 0) : 1, updatedAt: new Date().toISOString() };
+  delete saved.params;
   if (referenceImage) saved.referenceImage = referenceImage;
   else delete saved.referenceImage;
   const file = path.join(TMPL_DIR, `${tpl.id.replace(/[^a-z0-9_-]/g, "_")}.json`);
   await fs.writeFile(file, JSON.stringify(saved, null, 2) + "\n");
-  return { template: saved, created: !existing };
+  return { template: hydrateTemplate(saved), created: !existing };
 }
 
 export async function deleteTemplate(id) {
@@ -59,7 +70,7 @@ export async function loadComponents() {
   for (const f of (await fs.readdir(COMP_DIR)).filter((x) => x.endsWith(".json"))) {
     try {
       const d = JSON.parse(await fs.readFile(path.join(COMP_DIR, f), "utf8"));
-      out[d.id] = d;
+      out[d.id] = hydrateComponent(d);
     } catch (e) { console.warn(`Skipped component ${f}: ${e.message}`); }
   }
   return out;
@@ -74,10 +85,12 @@ export async function saveComponent(comp) {
   if (errors.length) throw Object.assign(new Error(errors.join(" ")), { status: 400, errors });
   await fs.mkdir(COMP_DIR, { recursive: true });
   const existing = await getComponent(comp.id);
-  const changed = !existing || JSON.stringify([existing.prompt, existing.params, existing.rules]) !== JSON.stringify([comp.prompt, comp.params, comp.rules]);
+  const changed = !existing || JSON.stringify([existing.systemPrompt, existing.config, existing.rules]) !== JSON.stringify([comp.systemPrompt, comp.config, comp.rules]);
   const saved = { ...comp, version: existing ? (existing.version || 1) + (changed ? 1 : 0) : 1, updatedAt: new Date().toISOString() };
+  delete saved.params;
+  delete saved.prompt;
   await fs.writeFile(path.join(COMP_DIR, `${comp.id}.json`), JSON.stringify(saved, null, 2) + "\n");
-  return { component: saved, created: !existing };
+  return { component: hydrateComponent(saved), created: !existing };
 }
 
 export async function deleteComponent(id) {

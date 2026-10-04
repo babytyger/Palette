@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { compilePrompt, validateTemplate, validateComponent, defaultParamValue } from "../src/compiler.js";
+import { compilePrompt, validateTemplate, validateComponent, defaultParamValue, paramsFromConfig } from "../src/compiler.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dir = path.join(root, "library", "templates");
 const compDir = path.join(root, "library", "components");
@@ -24,7 +24,7 @@ for (const f of (await fs.readdir(dir)).filter(f=>f.endsWith(".json"))) {
   const errs = validateTemplate(tpl);
   if (errs.length) { bad++; console.log(`✗ ${f}\n  ${errs.join("\n  ")}`); continue; }
   const values = {};
-  for (const p of tpl.params) if (p.type !== "image") values[p.id] = defaultParamValue(p);
+  for (const p of paramsFromConfig(tpl.config)) if (p.type !== "image") values[p.id] = defaultParamValue(p);
   const compiled = compilePrompt(tpl, values);
   const leaked = compiled.prompt.includes("data:image");
   console.log(`✓ ${tpl.id}  ${compiled.prompt.length} chars  ${compiled.warnings.length} warnings  image-leaked:${leaked}`);

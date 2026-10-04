@@ -1,3 +1,4 @@
+import { hydrateComponent, hydrateTemplate } from "@lib/compiler";
 import type { ComponentDef, Registry, Template } from "@/types/app";
 
 /**
@@ -48,8 +49,16 @@ const storeTemplate = async (def: Template, mode: string, registry: Registry) =>
     return data.template as Template;
   }
   const existing = registry.templates[def.id];
-  const changed = !existing || JSON.stringify([existing.systemPrompt, existing.params]) !== JSON.stringify([def.systemPrompt, def.params]);
-  return { ...def, version: existing ? (existing.version || 1) + (changed ? 1 : 0) : 1 } as Template;
+  const next: Template = { ...(existing || {}), ...def };
+  delete next.params;
+  if ((!def.config || typeof def.config !== "object") && existing?.config) {
+    next.config = existing.config;
+    next.systemPrompt = existing.systemPrompt;
+  }
+  const changed = !existing || JSON.stringify([existing.systemPrompt, existing.config]) !== JSON.stringify([next.systemPrompt, next.config]);
+  const saved = { ...next, version: existing ? (existing.version || 1) + (changed ? 1 : 0) : 1 };
+  delete saved.params;
+  return hydrateTemplate(saved) as Template;
 };
 
 /**
@@ -87,7 +96,10 @@ const storeComponent = async (def: ComponentDef, mode: string, registry: Registr
     return data.component as ComponentDef;
   }
   const existing = registry.components[def.id];
-  return { ...body, version: existing ? (existing.version || 1) + 1 : 1 } as ComponentDef;
+  const saved = { ...body, version: existing ? (existing.version || 1) + 1 : 1 };
+  delete saved.params;
+  delete saved.prompt;
+  return hydrateComponent(saved) as ComponentDef;
 };
 
 /**

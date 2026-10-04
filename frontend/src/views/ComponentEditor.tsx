@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { compileComponent, defaultParamValue, validateComponent } from "@lib/compiler";
+import { compileComponent, defaultParamValue, paramsFromConfig, validateComponent } from "@lib/compiler";
 import { PageHeader } from "@/components/PageHeader";
 import { ParamControl } from "@/components/ParamControl";
 import { AppSelect } from "@/components/AppSelect";
@@ -7,12 +7,10 @@ import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/Toast";
 import { storeComponent, deleteComponent } from "@/db/api";
 import {
-  applyParamFunction, ensureParamsForPrompt, formatParamValue, inferParamFunction,
-  migrateStrayParamValues, paletteGroups, paramForControl, paramStoredValue,
-  parseParamValue, PARAM_FUNCTIONS, promptParamIds, setParamStoredValue, starterComponent
+  ensureConfigForPrompt, inferParamFunction, paletteGroups, paramForControl, promptPlaceholders, starterComponent
 } from "@/util/params";
 import { scopeLabel } from "@/util/format";
-import type { ComponentDef, Param } from "@/types/app";
+import type { ComponentDef } from "@/types/app";
 
 type Props = {
   component: ComponentDef | null;
@@ -29,6 +27,8 @@ const ComponentEditor = ({ component: comp, onBack }: Props) => {
   const [json, setJson] = useState(() => {
     const start = isNew ? starterComponent() : JSON.parse(JSON.stringify(comp));
     delete start.updatedAt;
+    delete start.params;
+    delete start.prompt;
     return JSON.stringify(start, null, 2);
   });
   const [tryValues, setTryValues] = useState<Record<string, any>>({});
@@ -51,38 +51,33 @@ const ComponentEditor = ({ component: comp, onBack }: Props) => {
    * @param nextDef - Component definition
    * @param nextTry - Try-it values to persist
    */
-  const writeDef = (nextDef: ComponentDef, nextTry = tryValues) => {
-    migrateStrayParamValues(nextDef);
-    for (const p of nextDef.params || []) {
-      if (nextTry[p.id] !== undefined) setParamStoredValue(p, nextTry[p.id]);
-    }
-    setJson(JSON.stringify(nextDef, null, 2));
+  /**
+   * Writes a definition back to the JSON editor, keeping config as the control list.
+   *
+   * @param nextDef - Component definition
+   */
+  const writeDef = (nextDef: ComponentDef) => {
+    const stored: ComponentDef = { ...nextDef, config: { ...(nextDef.config || {}) } };
+    delete stored.params;
+    delete stored.prompt;
+    delete stored.updatedAt;
+    setJson(JSON.stringify(stored, null, 2));
   };
 
   const def = parseDef();
   const jsonError = (() => { try { JSON.parse(json); return ""; } catch (e: any) { return e.message; } })();
   const errors = def && !jsonError ? validateComponent(def) : [];
 
-  const persistTry = (p: Param, v: any) => {
-    const nextTry = { ...tryValues, [p.id]: v };
-    setTryValues(nextTry);
-    const live = parseDef();
-    if (!live) return;
-    migrateStrayParamValues(live);
-    const target = (live.params || []).find((x) => x.id === p.id);
-    if (!target) return;
-    setParamStoredValue(target, v);
-    setJson(JSON.stringify(live, null, 2));
+  const persistTry = (id: string, v: any) => {
+    setTryValues((current) => ({ ...current, [id]: v }));
   };
 
   const save = async () => {
     let next: ComponentDef;
     try { next = JSON.parse(json); } catch { toast("Invalid JSON.", "error"); return; }
-    migrateStrayParamValues(next);
-    for (const p of next.params || []) {
-      if (tryValues[p.id] !== undefined) setParamStoredValue(p, tryValues[p.id]);
-    }
-    ensureParamsForPrompt(next);
+    ensureConfigForPrompt(next);
+    delete next.params;
+    delete next.prompt;
     if (isNew && registry.components?.[next.id]) {
       toast(`A component called ${next.id} already exists. Change the id.`, "error");
       return;
@@ -118,9 +113,8 @@ const ComponentEditor = ({ component: comp, onBack }: Props) => {
   let compiledText = "";
   if (def) {
     const values = { ...tryValues };
-    for (const p of def.params || []) {
-      const controlParam = paramForControl(p, inferParamFunction(p));
-      if (values[p.id] === undefined) values[p.id] = paramStoredValue(controlParam) ?? defaultParamValue(controlParam);
+    for (const p of paramsFromConfig(def.config)) {
+      if (values[p.id] === undefined) values[p.id] = defaultParamValue(p);
     }
     const c = compileComponent(def, values);
     compiledText = [c.text, c.overrideNote].filter(Boolean).join(" ") + (c.rules.length ? `\n\nRules:\n${c.rules.map((r) => `- ${r}`).join("\n")}` : "");
@@ -129,7 +123,22 @@ const ComponentEditor = ({ component: comp, onBack }: Props) => {
   const groups = def ? paletteGroups(registry) : [];
   const current = def?.category || "";
   if (current && !groups.includes(current)) groups.push(current);
-  const missing = def ? promptParamIds(def.prompt).filter((id) => (def.params || []).every((p) => p.id !== id)) : [];
+  const controls = def ? paramsFromConfig(def.config) : [];
+  const entries = Object.entries(def?.config || {});
+  const configTokens = new Set(Object.values(def?.config || {}));
+  const missing = def ? promptPlaceholders(def.systemPrompt || "").filter((id) => !configTokens.has(id)) : [];
+
+  /**
+   * Replaces the config object while preserving key order.
+   *
+   * @param next - Config entries in order
+   */
+  const writeConfig = (next: Array<[string, string]>) => {
+    if (!def) return;
+    const config: Record<string, string> = {};
+    for (const [key, token] of next) config[key] = token;
+    writeDef({ ...def, config });
+  };
 
   return (
     <>
@@ -198,84 +207,66 @@ const ComponentEditor = ({ component: comp, onBack }: Props) => {
           </div>
           <div className="editor-panel">
             <div className="editor-panel-head">
-              <h2><span className="studio-block-num">03</span> Parameters</h2>
-              <span className="stack-count">{(def?.params || []).length}</span>
+              <h2><span className="studio-block-num">03</span> Config</h2>
+              <span className="stack-count">{entries.length}</span>
             </div>
             <div className="editor-panel-body">
-              <p className="comp-form-hint">Colour, dropdown or slider. Users only fill in the value.</p>
+              <p className="comp-form-hint">The key is the control. The placeholder is the {"{{name}}"} inside systemPrompt.</p>
               {missing.length && def ? (
                 <>
                   <p className="comp-form-hint">Prompt placeholders without a control: {missing.join(", ")}.</p>
-                  <button type="button" className="btn small" onClick={() => { ensureParamsForPrompt(def); writeDef(def); }}>Add inferred controls</button>
+                  <button type="button" className="btn small" onClick={() => { ensureConfigForPrompt(def); writeDef(def); }}>Add inferred controls</button>
                 </>
               ) : null}
-              {(def?.params || []).map((p, i) => {
-                const fn = inferParamFunction(p);
+              {entries.map(([key, token], i) => {
+                const kind = key.endsWith("_color") ? "color" : "text";
                 return (
-                  <div key={i} className="param-fn-card">
+                  <div key={`${key}-${i}`} className="param-fn-card">
                     <div className="param-fn-grid">
                       <div className="comp-form-row">
-                        <label>Id</label>
-                        <input type="text" value={p.id || ""} onChange={(e) => {
-                          const params = [...(def.params || [])];
-                          params[i] = { ...p, id: e.target.value.trim() };
-                          writeDef({ ...def, params });
+                        <label>Key</label>
+                        <input type="text" value={key} onChange={(e) => {
+                          const next = [...entries] as Array<[string, string]>;
+                          next[i] = [e.target.value.trim(), token];
+                          writeConfig(next);
                         }} />
                       </div>
                       <div className="comp-form-row">
-                        <label>Label</label>
-                        <input type="text" value={p.label || ""} onChange={(e) => {
-                          const params = [...(def.params || [])];
-                          params[i] = { ...p, label: e.target.value };
-                          writeDef({ ...def, params });
+                        <label>Placeholder</label>
+                        <input type="text" value={token} onChange={(e) => {
+                          const next = [...entries] as Array<[string, string]>;
+                          next[i] = [key, e.target.value.trim()];
+                          writeConfig(next);
                         }} />
                       </div>
                       <div className="comp-form-row full">
-                        <label>Value</label>
-                        <input data-param-value={p.id} type="text" defaultValue={formatParamValue(paramStoredValue(p))} onBlur={(e) => {
-                          const v = parseParamValue(p, e.target.value);
-                          const nextTry = { ...tryValues, [p.id]: v };
-                          setTryValues(nextTry);
-                          const params = [...(def.params || [])];
-                          const copy = { ...p };
-                          setParamStoredValue(copy, v);
-                          params[i] = copy;
-                          writeDef({ ...def, params }, nextTry);
-                        }} />
-                      </div>
-                      <div className="comp-form-row full">
-                        <label>Functionality</label>
+                        <label>Control</label>
                         <AppSelect
                           className="comp-fn-select"
-                          ariaLabel={`${p.label || p.id || "Parameter"} functionality`}
-                          value={fn}
-                          options={PARAM_FUNCTIONS.map((f) => ({ value: f.id, label: f.label }))}
-                          onChange={(next) => {
-                            const nextTry = { ...tryValues };
-                            delete nextTry[p.id];
-                            setTryValues(nextTry);
-                            const params = [...(def.params || [])];
-                            params[i] = applyParamFunction(p, next);
-                            writeDef({ ...def, params }, nextTry);
+                          ariaLabel={`${key} control`}
+                          value={kind}
+                          options={[{ value: "text", label: "Text" }, { value: "color", label: "Colour selection" }]}
+                          onChange={(nextKind) => {
+                            const base = key.replace(/_color$/, "") || "param";
+                            const nextKey = nextKind === "color" ? `${base}_color` : base;
+                            const next = [...entries] as Array<[string, string]>;
+                            next[i] = [nextKey, token];
+                            writeConfig(next);
                           }}
                         />
                       </div>
                     </div>
                     <button type="button" className="btn small danger" onClick={() => {
-                      const params = [...(def.params || [])];
-                      params.splice(i, 1);
-                      writeDef({ ...def, params });
+                      writeConfig(entries.filter((_, index) => index !== i));
                     }}>Remove</button>
                   </div>
                 );
               })}
               {def ? (
                 <button type="button" className="btn small add-param-btn" onClick={() => {
-                  const params = Array.isArray(def.params) ? [...def.params] : [];
-                  const n = params.length + 1;
-                  params.push(applyParamFunction({ id: `param${n}`, label: `Parameter ${n}`, type: "text" }, "text"));
-                  writeDef({ ...def, params });
-                }}>+ Add parameter</button>
+                  const n = entries.length + 1;
+                  writeConfig([...entries, [`param_${n}`, `param${n}`]]);
+                }}>+ Add control</button>
               ) : null}
             </div>
           </div>
@@ -288,15 +279,15 @@ const ComponentEditor = ({ component: comp, onBack }: Props) => {
                     {def.scope ? <span className={`scope ${def.scope}`}>{scopeLabel[def.scope] || def.scope}</span> : null}
                     <b>{def.name || "Untitled"}</b>
                   </div>
-                  {(def.params || []).length ? (
+                  {controls.length ? (
                     <div className="try-params">
-                      {(def.params || []).map((p) => {
+                      {controls.map((p) => {
                         const controlParam = paramForControl(p, inferParamFunction(p));
-                        const v = tryValues[p.id] === undefined ? (paramStoredValue(controlParam) ?? defaultParamValue(controlParam)) : tryValues[p.id];
+                        const v = tryValues[p.id] === undefined ? defaultParamValue(controlParam) : tryValues[p.id];
                         return (
                           <div key={p.id}>
                             <span className="ctl-label">{p.label || p.id}</span>
-                            <ParamControl param={controlParam} value={v} onChange={(nv) => persistTry(p, nv)} />
+                            <ParamControl param={controlParam} value={v} onChange={(nv) => persistTry(p.id, nv)} />
                           </div>
                         );
                       })}

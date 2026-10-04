@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
-import { validateTemplate } from "@lib/compiler";
+import { useState } from "react";
+import { paramsFromConfig, validateTemplate } from "@lib/compiler";
 import { PageHeader } from "@/components/PageHeader";
 import { ImageControl } from "@/components/ImageControl";
 import { useApp } from "@/context/AppContext";
 import { useToast } from "@/components/Toast";
 import { storeTemplate, deleteTemplate } from "@/db/api";
-import { labelFromParamId, paramQuickRefDetail, promptPlaceholders } from "@/util/params";
+import { bareConfigTokens, formatPromptDocument, labelFromParamId, paramQuickRefDetail, promptPlaceholders, readPromptDraft, templateIdFromName } from "@/util/params";
 import { typeEmoji } from "@/util/format";
 import type { Template } from "@/types/app";
 
@@ -17,30 +17,51 @@ type Props = {
 };
 
 /**
- * Template JSON editor with reference image and quick reference.
+ * Template editor. The prompt stays plain text; only the CONFIG block is JSON.
  */
 const TemplateEditor = ({ template: t, onSaved, onDeleted }: Props) => {
   const { mode, registry, setRegistry } = useApp();
   const toast = useToast();
   const isNew = !t;
-  const starter = useMemo(() => {
-    if (!t) return {};
-    const copy = JSON.parse(JSON.stringify(t));
-    delete copy.referenceImage;
-    delete copy.updatedAt;
-    return copy;
-  }, [t]);
-  const [json, setJson] = useState(isNew ? "" : JSON.stringify(starter, null, 2));
+  const [name, setName] = useState(t?.name || "");
+  const [themeId, setThemeId] = useState(t?.id || "");
+  const [idTouched, setIdTouched] = useState(!isNew);
+  const [doc, setDoc] = useState(isNew ? "" : formatPromptDocument(t));
   const [referenceImage, setReferenceImage] = useState<string | null>(t?.referenceImage || null);
   const [errors, setErrors] = useState<string[]>([]);
   const [armed, setArmed] = useState(false);
 
+  /**
+   * Restores the editor to the stored theme, or clears a new one.
+   */
+  const reset = () => {
+    setErrors([]);
+    if (isNew) {
+      setName("");
+      setThemeId("");
+      setIdTouched(false);
+      setDoc("");
+      return;
+    }
+    setName(t.name);
+    setThemeId(t.id);
+    setDoc(formatPromptDocument(t));
+  };
+
+  /**
+   * Saves the prompt document as systemPrompt plus config.
+   */
   const save = async () => {
     setErrors([]);
-    let def: Template;
-    try { def = JSON.parse(json); }
-    catch (e: any) { setErrors([`Invalid JSON: ${e.message}`]); return; }
-    if (isNew && registry.templates[def.id]) def.id = `${def.id}_copy`;
+    const draft = readPromptDraft(doc);
+    if (!draft) { setErrors(["Paste the prompt, then a CONFIG block."]); return; }
+    if (draft.configError) { setErrors([draft.configError]); return; }
+    const nextName = name.trim() || draft.name;
+    let nextId = isNew ? (themeId.trim() || draft.id || templateIdFromName(nextName)) : t.id;
+    if (isNew && nextId && registry.templates[nextId]) nextId = `${nextId}_copy`;
+    const def: Template = { ...(t || {}), id: nextId, name: nextName, systemPrompt: draft.systemPrompt, config: bareConfigTokens(draft.config) };
+    delete def.params;
+    delete def.updatedAt;
     if (referenceImage) def.referenceImage = referenceImage;
     else delete def.referenceImage;
     const errs = validateTemplate(def);
@@ -76,7 +97,7 @@ const TemplateEditor = ({ template: t, onSaved, onDeleted }: Props) => {
     <>
       <PageHeader
         title={isNew ? "New template" : `Edit: ${t.name}`}
-        subtitle={isNew ? "Paste your own template JSON. The editor starts empty." : "Press Save to keep changes. The version goes up when the prompt or params change."}
+        subtitle={isNew ? "Write the prompt in plain text, then a CONFIG block." : "Press Save to keep changes. The version goes up when the prompt or config changes."}
         actions={
           <>
             <button className="btn primary" type="button" onClick={save}>{isNew ? "Create template" : "Save template"}</button>
@@ -100,26 +121,38 @@ const TemplateEditor = ({ template: t, onSaved, onDeleted }: Props) => {
         </div>
         <div className="editor-panel">
           <div className="editor-panel-head">
-            <h2>Template definition (JSON)</h2>
-            <button className="btn small ghost" type="button" onClick={() => setJson(isNew ? "" : JSON.stringify(starter, null, 2))}>{isNew ? "Clear" : "Reset"}</button>
+            <h2>Prompt</h2>
+            <button className="btn small ghost" type="button" onClick={reset}>{isNew ? "Clear" : "Reset"}</button>
           </div>
           <div className="editor-panel-body">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="comp-form-row">
+                <label htmlFor="tpl-name">Name</label>
+                <input id="tpl-name" type="text" value={name} placeholder="Archival Experimental Editorial" onChange={(e) => {
+                  const next = e.target.value;
+                  setName(next);
+                  if (isNew && !idTouched) setThemeId(templateIdFromName(next));
+                }} />
+              </div>
+              <div className="comp-form-row">
+                <label htmlFor="tpl-id">Id</label>
+                <input id="tpl-id" type="text" value={themeId} placeholder="archival_experimental_editorial" disabled={!isNew} onChange={(e) => { setIdTouched(true); setThemeId(e.target.value); }} />
+              </div>
+            </div>
             <p className="comp-form-hint">
-              {isNew
-                ? "Paste the full template JSON. Quick reference below updates from the params and {{placeholders}} in your prompt."
-                : <>The <code style={{ background: "var(--surface2)", padding: "1px 5px", borderRadius: 4 }}>systemPrompt</code> field is the master prompt. Every {"{{paramId}}"} must have a matching entry in params.</>}
+              Write the prompt as plain text. End with a CONFIG block. Each value is the {"{{placeholder}}"} that the control fills.
             </p>
-            <textarea className="code" spellCheck={false} aria-label="Template definition JSON" placeholder="Paste your template JSON here." value={json} onChange={(e) => setJson(e.target.value)} />
+            <textarea className="code" spellCheck={false} aria-label="Template prompt" placeholder={"OPENING IN\nDescribe the image. Use {{subjectImage}} where the subject goes.\n\nCONFIG\n{\n  \"subject_image\": \"{{subjectImage}}\"\n}"} value={doc} onChange={(e) => setDoc(e.target.value)} />
             {errors.length ? (
               <div className="notice error"><ul className="errs">{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>
             ) : null}
             <p style={{ fontSize: 12, color: "var(--muted)", margin: "10px 0 0" }}>
-              {mode === "server" ? `Saves to library/templates/${isNew ? "<id>" : t.id}.json on the server.` : "Demo mode: themes are saved in this browser only."}
+              {mode === "server" ? `Saves to library/templates/${themeId || "<id>"}.json on the server.` : "Demo mode: themes are saved in this browser only."}
             </p>
           </div>
         </div>
       </div>
-      <QuickReference raw={json} />
+      <QuickReference raw={doc} />
     </>
   );
 };
@@ -130,55 +163,54 @@ const TemplateEditor = ({ template: t, onSaved, onDeleted }: Props) => {
  * @param props.raw - Raw textarea contents
  */
 const QuickReference = ({ raw }: { raw: string }) => {
-  let body = <p style={{ color: "var(--faint)", margin: 0, fontSize: 13 }}>Paste your template JSON. Parameters from that prompt will appear here.</p>;
+  let body = <p style={{ color: "var(--faint)", margin: 0, fontSize: 13 }}>Write the prompt, then a CONFIG block. Controls from that block appear here.</p>;
   const text = String(raw || "").trim();
   if (text) {
-    try {
-      const def = JSON.parse(text);
-      if (!def || typeof def !== "object" || Array.isArray(def)) {
-        body = <p style={{ color: "var(--faint)", margin: 0, fontSize: 13 }}>The JSON must be a template object.</p>;
-      } else {
-        const params = Array.isArray(def.params) ? def.params : [];
-        const placeholders = promptPlaceholders(def.systemPrompt);
-        const paramIds = new Set(params.map((p: any) => p && p.id).filter(Boolean));
-        const missing = placeholders.filter((id) => !paramIds.has(id));
-        if (!params.length && !placeholders.length) {
-          body = <p style={{ color: "var(--faint)", margin: 0, fontSize: 13 }}>No parameters found. Add a params array, or use {"{{paramId}}"} in systemPrompt.</p>;
-        } else {
-          body = (
-            <>
-              {def.name || def.id ? <p style={{ fontSize: 13, margin: "0 0 10px", color: "var(--muted)" }}>{[def.name, def.id].filter(Boolean).join(" · ")}</p> : null}
-              <div className="qref-list">
-                {params.map((p: any, i: number) => (
-                  <div key={p.id || i} className="qref-row">
-                    <span className={`param-type-badge ${p.type || ""}`}>{typeEmoji[p.type] || "·"} {p.type || "unknown"}</span>
-                    <div>
-                      <b>{p.id || "(missing id)"}</b>
-                      {paramQuickRefDetail(p) ? <small>{paramQuickRefDetail(p)}</small> : null}
-                    </div>
+    const draft = readPromptDraft(text);
+    const config = draft?.config || {};
+    const params = paramsFromConfig(config);
+    const placeholders = promptPlaceholders(draft?.systemPrompt || "");
+    const paramIds = new Set(params.map((p) => p.id));
+    const missing = placeholders.filter((id) => !paramIds.has(id));
+    const entries = Object.entries(config);
+    if (!entries.length && !missing.length) {
+      body = draft?.parsed
+        ? <p style={{ color: "var(--faint)", margin: 0, fontSize: 13 }}>No controls found. Add a CONFIG block, or use {"{{placeholder}}"} in the prompt.</p>
+        : <p style={{ color: "var(--faint)", margin: 0, fontSize: 13 }}>{draft?.configError || "Add a CONFIG block. Controls appear once that object parses."}</p>;
+    } else {
+      body = (
+        <>
+          {draft?.title ? <p style={{ fontSize: 13, margin: "0 0 10px", color: "var(--muted)" }}>{draft.title}</p> : null}
+          <div className="qref-list">
+            {entries.map(([key], index) => {
+              const param = params[index];
+              return (
+                <div key={key} className="qref-row">
+                  <span className={`param-type-badge ${param?.type || ""}`}>{typeEmoji[param?.type || ""] || "·"} {param?.type || "unknown"}</span>
+                  <div>
+                    <b>{param?.id || "(missing placeholder)"}</b>
+                    <small>{[key, param ? paramQuickRefDetail(param) : ""].filter(Boolean).join(" · ")}</small>
                   </div>
-                ))}
-                {missing.map((id) => (
-                  <div key={id} className="qref-row">
-                    <span className="param-type-badge">{"{{ }}"}</span>
-                    <div>
-                      <b>{id}</b>
-                      <small>Used in the prompt as {`{{${id}}}`} ({labelFromParamId(id)}). Add a matching params entry.</small>
-                    </div>
-                  </div>
-                ))}
+                </div>
+              );
+            })}
+            {missing.map((id) => (
+              <div key={id} className="qref-row">
+                <span className="param-type-badge">{"{{ }}"}</span>
+                <div>
+                  <b>{id}</b>
+                  <small>Used in the prompt as {`{{${id}}}`} ({labelFromParamId(id)}). Add it as a config value.</small>
+                </div>
               </div>
-            </>
-          );
-        }
-      }
-    } catch {
-      body = <p style={{ color: "var(--faint)", margin: 0, fontSize: 13 }}>JSON is not valid yet. Parameters will appear once it parses.</p>;
+            ))}
+          </div>
+        </>
+      );
     }
   }
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <div className="card-head"><h2>Quick reference</h2><span style={{ fontSize: 12, color: "var(--muted)" }}>From your JSON</span></div>
+      <div className="card-head"><h2>Quick reference</h2><span style={{ fontSize: 12, color: "var(--muted)" }}>From the CONFIG block</span></div>
       <div className="card-body">{body}</div>
     </div>
   );

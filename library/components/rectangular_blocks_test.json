@@ -5,30 +5,6 @@
   "scope": "element",
   "description": "Adds rectangular blocks to the selected composition area.",
   "affects": [],
-  "prompt": "Add rectangular blocks using {shape_density} density and {shape_color}. Arrange the blocks with varied sizes, spacing and positioning while keeping them visually clean and distinct. The blocks should remain behind and never obscure the primary subject or important information.",
-  "params": [
-    {
-      "id": "shape",
-      "label": "Shape",
-      "type": "text",
-      "defaultValue": "Rectangular Blocks",
-      "preview": "Display a visual preview of rectangular blocks with varied proportions on a neutral background."
-    },
-    {
-      "id": "shape_density",
-      "label": "Density",
-      "type": "text",
-      "defaultValue": "Medium",
-      "preview": "Display the approximate amount, spacing and visual coverage of rectangular blocks at the selected density."
-    },
-    {
-      "id": "shape_color",
-      "label": "Color",
-      "type": "color",
-      "defaultValue": "#000000",
-      "preview": "Display the selected block color as a color swatch alongside the shape preview."
-    }
-  ],
   "rules": [
     {
       "condition": "shape_density = Low",
@@ -51,6 +27,11 @@
       "instruction": "Do not allow blocks to distort, replace or obscure the primary subject or important visual information."
     }
   ],
-  "version": 1,
-  "updatedAt": "2026-09-30T11:58:14.438Z"
+  "version": 2,
+  "updatedAt": "2026-10-04T08:27:31.659Z",
+  "systemPrompt": "Add rectangular blocks using {{shape_density}} density and {{shape_color}}. Arrange the blocks with varied sizes, spacing and positioning while keeping them visually clean and distinct. The blocks should remain behind and never obscure the primary subject or important information.",
+  "config": {
+    "shape_density": "shape_density",
+    "shape_color": "shape_color"
+  }
 }

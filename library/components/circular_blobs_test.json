@@ -5,16 +5,6 @@
   "scope": "element",
   "description": "Adds three circular blobs behind the main subject with varied placement on every generation.",
   "affects": [],
-  "prompt": "Add exactly 3 circular blobs in {blob_color} behind the main subject. Randomly distribute their positions each time so the placement, spacing and overlap relationships vary between generations. Keep all three blobs fully behind the main subject and never obscure, distort or replace the subject or its important information.",
-  "params": [
-    {
-      "id": "blob_color",
-      "label": "Color",
-      "type": "color",
-      "defaultValue": "#000000",
-      "preview": "Display the selected blob color as a color swatch."
-    }
-  ],
   "rules": [
     {
       "condition": "always",
@@ -37,6 +27,10 @@
       "instruction": "Keep the blobs circular with no transformation into other shapes."
     }
   ],
-  "version": 1,
-  "updatedAt": "2026-09-30T11:59:55.791Z"
+  "version": 2,
+  "updatedAt": "2026-10-04T08:27:31.659Z",
+  "systemPrompt": "Add exactly 3 circular blobs in {{blob_color}} behind the main subject. Randomly distribute their positions each time so the placement, spacing and overlap relationships vary between generations. Keep all three blobs fully behind the main subject and never obscure, distort or replace the subject or its important information.",
+  "config": {
+    "blob_color": "blob_color"
+  }
 }

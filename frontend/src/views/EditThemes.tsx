@@ -48,7 +48,8 @@ const EditThemes = ({ onBack, onAdd, onEdit }: Props) => {
    */
   const setArchived = async (theme: Template, archived: boolean) => {
     try {
-      const saved = await storeTemplate({ ...theme, archived }, app.mode, app.registry);
+      const current = app.registry.templates[theme.id] || theme;
+      const saved = await storeTemplate({ ...current, archived }, app.mode, app.registry);
       app.setRegistry((r) => ({ ...r, templates: { ...r.templates, [saved.id]: saved } }));
       toast(archived ? `Archived ${theme.name}.` : `Restored ${theme.name}.`);
     } catch (error: any) {

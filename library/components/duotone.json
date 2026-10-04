@@ -8,22 +8,12 @@
     "palette"
   ],
   "conflictsWith": [],
-  "prompt": "Render the image as a two-colour duotone. Map shadows to {{darkTone}} and highlights to {{lightTone}}.",
-  "params": [
-    {
-      "id": "darkTone",
-      "label": "Dark Tone",
-      "type": "color",
-      "defaultHex": "#0047AB"
-    },
-    {
-      "id": "lightTone",
-      "label": "Light Tone",
-      "type": "color",
-      "defaultHex": "#0047AB"
-    }
-  ],
   "rules": [],
-  "version": 1,
-  "updatedAt": "2026-09-30T04:45:53.606Z"
+  "version": 2,
+  "updatedAt": "2026-10-04T08:27:31.659Z",
+  "systemPrompt": "Render the image as a two-colour duotone. Map shadows to {{darkTone}} and highlights to {{lightTone}}.",
+  "config": {
+    "dark_color": "darkTone",
+    "light_color": "lightTone"
+  }
 }
