@@ -57,12 +57,13 @@ const Studio = ({ template: t, onEdit, onWorkspace, onFresh }: Props) => {
   const accentParams = params.filter((p) => p.type === "color");
   const styleParams = params.filter((p) => p.type !== "image" && p.type !== "color");
   const lib = app.registry.components || {};
+  const stacked = app.liveComponents;
   const rail = [
-    "subject",
+    ...(subjectParams.length ? ["subject"] : []),
     ...(backgroundParams.length ? ["background"] : []),
-    "accent",
-    "style",
-    "stack"
+    ...(accentParams.length ? ["accent"] : []),
+    ...(styleParams.length ? ["style"] : []),
+    ...(stacked.length ? ["stack"] : [])
   ];
   /**
    * Number for a studio rail block, skipping unused sections.
@@ -205,7 +206,7 @@ const Studio = ({ template: t, onEdit, onWorkspace, onFresh }: Props) => {
         const j = await tryJson("api/jobs?limit=50");
         if (j) app.setRegistry((r) => ({ ...r, _jobs: j }));
       } else {
-        app.setRegistry((r) => ({ ...r, _jobs: [{ ...job, createdAt: new Date().toISOString(), size: t.apiSize }, ...(r._jobs || [])] }));
+        app.setRegistry((r) => ({ ...r, _jobs: [{ ...job, createdAt: new Date().toISOString(), size: "1024x1024" }, ...(r._jobs || [])] }));
       }
     } catch (e: any) {
       app.setPreviewJob(null);
@@ -300,25 +301,23 @@ const Studio = ({ template: t, onEdit, onWorkspace, onFresh }: Props) => {
           <ResizablePanel defaultSize="26" minSize="18" maxSize="38" className="min-h-0">
             <div className="studio-rail">
               <div className="studio-rail-scroll">
-              <ParamBlock n={blockNum("subject")} title="Subject">
-                {subjectParams.length
-                  ? (
-                    <div className="studio-drops">
-                      {subjectParams.map((p) => (
-                        <ImageControl
-                          key={p.id}
-                          param={p}
-                          compact
-                          emptyTitle="Drop image"
-                          emptyHint="or browse files"
-                          value={app.liveValues[p.id]}
-                          onChange={(v) => setValue(p.id, v)}
-                        />
-                      ))}
-                    </div>
-                  )
-                  : <p className="studio-sec-hint">No subject image on this template.</p>}
-              </ParamBlock>
+              {subjectParams.length ? (
+                <ParamBlock n={blockNum("subject")} title="Subject">
+                  <div className="studio-drops">
+                    {subjectParams.map((p) => (
+                      <ImageControl
+                        key={p.id}
+                        param={p}
+                        compact
+                        emptyTitle="Drop image"
+                        emptyHint="or browse files"
+                        value={app.liveValues[p.id]}
+                        onChange={(v) => setValue(p.id, v)}
+                      />
+                    ))}
+                  </div>
+                </ParamBlock>
+              ) : null}
               {backgroundParams.length ? (
                 <ParamBlock n={blockNum("background")} title="Background">
                   <div className="studio-drops">
@@ -336,26 +335,27 @@ const Studio = ({ template: t, onEdit, onWorkspace, onFresh }: Props) => {
                   </div>
                 </ParamBlock>
               ) : null}
-              <ParamBlock n={blockNum("accent")} title="Accent">
-                {accentParams.length
-                  ? accentParams.map((p) => (
+              {accentParams.length ? (
+                <ParamBlock n={blockNum("accent")} title="Accent">
+                  {accentParams.map((p) => (
                     <ColorControl key={p.id} param={p} compact value={app.liveValues[p.id]} onChange={(v) => setValue(p.id, v)} />
-                  ))
-                  : <p className="studio-sec-hint">No colour settings on this template.</p>}
-              </ParamBlock>
-              <ParamBlock n={blockNum("style")} title="Style" extra={<span className="ai-mark">AI</span>}>
-                {styleParams.length
-                  ? styleParams.map((p) => (
+                  ))}
+                </ParamBlock>
+              ) : null}
+              {styleParams.length ? (
+                <ParamBlock n={blockNum("style")} title="Style" extra={<span className="ai-mark">AI</span>}>
+                  {styleParams.map((p) => (
                     <div key={p.id} className="studio-style">
                       <ParamControl param={p} value={app.liveValues[p.id]} onChange={(v) => setValue(p.id, v)} />
                     </div>
-                  ))
-                  : <p className="studio-sec-hint">No style settings on this template.</p>}
-              </ParamBlock>
+                  ))}
+                </ParamBlock>
+              ) : null}
+              {stacked.length ? (
               <ParamBlock
                 n={blockNum("stack")}
                 title="Stack"
-                extra={stack.length ? <span className="stack-count">{stack.length} added</span> : null}
+                extra={<span className="stack-count">{stack.length} added</span>}
               >
                 <div
                   className={cn("stack-drop", overSlot === "canvas" && "over")}
@@ -363,24 +363,22 @@ const Studio = ({ template: t, onEdit, onWorkspace, onFresh }: Props) => {
                   onDragLeave={() => setOverSlot(null)}
                   onDrop={(e) => dropOn("canvas", e)}
                 >
-                  {stack.length ? (
-                    <div className="stack-chips">
-                      {stack.map((sel, i) => {
-                        const c = lib[sel.id];
-                        if (!c) return null;
-                        return (
-                          <span key={`${sel.id}-${i}`} className="stack-chip">
-                            {c.name}
-                            <button type="button" aria-label={`Remove ${c.name}`} onClick={() => {
-                              const next = app.liveComponents.filter((s) => s !== sel);
-                              app.setLiveComponents(next);
-                              refresh(app.liveValues, next);
-                            }}>×</button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  ) : <p className="studio-sec-hint">Add from the library, or drop here.</p>}
+                  <div className="stack-chips">
+                    {stack.map((sel, i) => {
+                      const c = lib[sel.id];
+                      if (!c) return null;
+                      return (
+                        <span key={`${sel.id}-${i}`} className="stack-chip">
+                          {c.name}
+                          <button type="button" aria-label={`Remove ${c.name}`} onClick={() => {
+                            const next = app.liveComponents.filter((s) => s !== sel);
+                            app.setLiveComponents(next);
+                            refresh(app.liveValues, next);
+                          }}>×</button>
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
                 {stack.map((sel, i) => {
                   const c = lib[sel.id];
@@ -403,6 +401,7 @@ const Studio = ({ template: t, onEdit, onWorkspace, onFresh }: Props) => {
                   );
                 })}
               </ParamBlock>
+              ) : null}
               </div>
               <button className={cn("btn primary gen-btn", dark && "gen-btn-dark")} type="button" disabled={busy} onClick={generate}>
                 {busy ? "Generating…" : "Generate design"} <span aria-hidden>→</span>

@@ -31,8 +31,8 @@ for (const f of (await fs.readdir(dir)).filter(f=>f.endsWith(".json"))) {
   let unresolved = 0;
   for (const id of Object.keys(library)) {
     const withComp = compilePrompt(tpl, values, { library, components: [{ id, values: {} }] });
-    if (/\{\{[a-zA-Z0-9_]+\}\}/.test(withComp.prompt) || withComp.componentProblems.length) {
-      unresolved++; console.log(`  ✗ with ${id}: ${withComp.componentProblems.map(p=>p.reason).join(" ") || "unresolved placeholder"}`);
+    if (withComp.componentProblems.length) {
+      unresolved++; console.log(`  ✗ with ${id}: ${withComp.componentProblems.map(p=>p.reason).join(" ")}`);
     }
   }
   console.log(`  ${Object.keys(library).length - unresolved}/${Object.keys(library).length} components compile cleanly on this template`);

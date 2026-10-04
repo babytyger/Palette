@@ -16,7 +16,6 @@ export const IMAGE_FIDELITY = ["exact", "source", "style"];
 export const COMPONENT_CATEGORIES = ["Colour", "Texture", "Shape", "Background", "Layout", "Subject", "Rules"];
 
 const TOKEN = /^[a-zA-Z][a-zA-Z0-9_]*$/;
-const CONFIG_KEY = /^[a-z][a-z0-9_]*$/;
 
 /**
  * Reads a config value as a placeholder name.
@@ -43,26 +42,83 @@ const labelFromConfigKey = (key) => String(key || "")
  * @returns Whether the control is an image
  */
 const isImageConfigKey = (key) => /(?:^|_)image(?:_|$)/.test(key);
+const HEX_VALUE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/**
+ * Reads a config value that may also carry a chosen text or image level.
+ *
+ * @param token - String value, or `{ value, type }`
+ * @returns Plain value and an explicit type when one was stored
+ */
+const readConfigEntry = (token) => {
+  if (token && typeof token === "object" && !Array.isArray(token)) {
+    const value = token.value ?? token.token ?? token.placeholder ?? "";
+    const type = token.type === "image" || token.type === "text" ? token.type : "";
+    return { value: value == null ? "" : String(value), type };
+  }
+  return { value: token == null ? "" : String(token), type: "" };
+};
+
+/**
+ * Type a config key would get before any chosen level.
+ *
+ * @param key - Config key
+ * @param value - Config value
+ * @returns image, color, or text
+ */
+const naturalParamType = (key, value) => {
+  const bare = normalizeConfigToken(value);
+  if (isImageConfigKey(key) || isImageConfigKey(bare)) return "image";
+  if (/_color$/.test(key) || HEX_VALUE.test(bare)) return "color";
+  return "text";
+};
+
+/**
+ * Stores a config value, keeping a type only when it differs from the key.
+ *
+ * @param key - Config key
+ * @param token - Current value or `{ value, type }`
+ * @param type - Chosen text or image level
+ * @returns Plain value, or `{ value, type }` when the choice is an override
+ */
+const packConfigValue = (key, token, type) => {
+  const { value } = readConfigEntry(token);
+  if (type !== "text" && type !== "image") return value;
+  if (naturalParamType(key, value) === type) return value;
+  return { value, type };
+};
 
 /**
  * Builds one studio control from a config entry.
  *
  * The key is the control kind. The value is the {{placeholder}} in the prompt.
+ * A stored type of text or image wins over that guess.
  *
  * @param key - Config key, such as subject_image or highlight_color
  * @param token - Placeholder name used in the prompt
  * @returns Param definition the studio and compiler already understand
  */
-const paramFromConfigEntry = (key, token) => {
-  const id = normalizeConfigToken(token);
+const paramFromConfigEntry = (key, token, placeholders = new Set()) => {
+  const { value: rawInput, type: forced } = readConfigEntry(token);
+  const raw = rawInput.trim();
+  const bare = normalizeConfigToken(raw);
+  const linked = Boolean(bare) && placeholders.has(bare);
+  const id = linked ? bare : placeholders.has(key) ? key : (TOKEN.test(bare) ? bare : key);
   const label = isImageConfigKey(key) && /(?:^|_)bg(?:_|$)/.test(key) && !/background/.test(key)
     ? "Background image"
     : labelFromConfigKey(key);
-  if (isImageConfigKey(key)) return { id, label, type: "image", fidelity: "exact" };
-  if (/_color$/.test(key)) return { id, label, type: "color", defaultHex: "#111111" };
-  if (/_level$/.test(key)) return { id, label, type: "text", defaultValue: "Low" };
-  if (/_density$/.test(key)) return { id, label, type: "text", defaultValue: "Medium" };
-  return { id, label, type: "text", defaultValue: "" };
+  const literal = !linked && raw && !placeholders.has(bare) ? raw : "";
+  if (forced === "image" || (!forced && (isImageConfigKey(key) || isImageConfigKey(id)))) {
+    return { id, label, type: "image", fidelity: "exact" };
+  }
+  if (!forced && (/_color$/.test(key) || HEX_VALUE.test(bare))) {
+    const param = { id, label, type: "color" };
+    if (HEX_VALUE.test(literal)) param.defaultHex = literal.toUpperCase();
+    return param;
+  }
+  const param = { id, label, type: "text" };
+  if (literal) param.defaultValue = literal;
+  return param;
 };
 
 /**
@@ -71,9 +127,10 @@ const paramFromConfigEntry = (key, token) => {
  * @param config - Map of control key to placeholder name
  * @returns Controls in config order
  */
-const paramsFromConfig = (config) => {
+const paramsFromConfig = (config, promptText = "") => {
   if (!config || typeof config !== "object" || Array.isArray(config)) return [];
-  return Object.entries(config).map(([key, token]) => paramFromConfigEntry(key, token));
+  const placeholders = new Set(promptTokens(promptText));
+  return Object.entries(config).map(([key, token]) => paramFromConfigEntry(key, token, placeholders));
 };
 
 /**
@@ -101,31 +158,11 @@ const promptTokens = (text) => {
  * @param options.allowImage - Templates may declare image keys
  * @returns Plain-English errors
  */
-const validateConfig = (config, promptText, { allowImage = true } = {}) => {
-  const errors = [];
+const validateConfig = (config) => {
   if (config == null || typeof config !== "object" || Array.isArray(config)) {
-    return ["config must be an object of control keys to placeholder names."];
+    return ["config must be an object."];
   }
-  const seen = new Set();
-  for (const [key, raw] of Object.entries(config)) {
-    const token = normalizeConfigToken(raw);
-    if (!CONFIG_KEY.test(key)) errors.push(`Config key "${key}" must be lowercase snake_case.`);
-    if (typeof raw !== "string" || !TOKEN.test(token)) {
-      errors.push(`Config "${key}" must name a placeholder like subjectImage.`);
-      continue;
-    }
-    if (seen.has(token)) errors.push(`Placeholder "${token}" is used by more than one config key.`);
-    seen.add(token);
-    if (!allowImage && isImageConfigKey(key)) errors.push(`Config "${key}": components cannot take image inputs.`);
-  }
-  const placeholders = promptTokens(promptText);
-  for (const ph of placeholders) {
-    if (!seen.has(ph)) errors.push(`The prompt uses {{${ph}}} but config does not name that placeholder.`);
-  }
-  for (const token of seen) {
-    if (!placeholders.includes(token)) errors.push(`Config names {{${token}}} but the prompt does not use it.`);
-  }
-  return errors;
+  return [];
 };
 
 /**
@@ -136,7 +173,7 @@ const validateConfig = (config, promptText, { allowImage = true } = {}) => {
  */
 const hydrateTemplate = (tpl) => {
   if (!tpl || typeof tpl !== "object") return tpl;
-  return { ...tpl, params: paramsFromConfig(tpl.config) };
+  return { ...tpl, params: paramsFromConfig(tpl.config, tpl.systemPrompt) };
 };
 
 /**
@@ -149,7 +186,7 @@ const hydrateComponent = (comp) => {
   if (!comp || typeof comp !== "object") return comp;
   const systemPrompt = typeof comp.systemPrompt === "string" ? comp.systemPrompt : (comp.prompt || "");
   const config = comp.config && typeof comp.config === "object" && !Array.isArray(comp.config) ? comp.config : {};
-  return { ...comp, systemPrompt, config, params: paramsFromConfig(config) };
+  return { ...comp, systemPrompt, config, params: paramsFromConfig(config, systemPrompt) };
 };
 
 // Validates a template definition. Returns an array of plain-English errors.
@@ -169,7 +206,7 @@ export function validateTemplate(tpl) {
       errors.push("referenceImage must be an uploaded image.");
     }
   }
-  errors.push(...validateConfig(tpl.config, tpl.systemPrompt || "", { allowImage: true }));
+  errors.push(...validateConfig(tpl.config));
   return errors;
 }
 
@@ -185,14 +222,14 @@ export function validateComponent(c) {
   for (const key of ["rules", "affects", "conflictsWith"]) {
     if (c[key] != null && !Array.isArray(c[key])) errors.push(`${key} must be an array.`);
   }
-  errors.push(...validateConfig(c.config, c.systemPrompt || "", { allowImage: false }));
+  errors.push(...validateConfig(c.config));
   return errors;
 }
 
 // Returns the default value for any param, used to pre-fill the UI.
 export function defaultParamValue(p) {
   switch (p.type) {
-    case "color": return p.defaultHex || "#0047AB";
+    case "color": return p.defaultHex || "";
     case "select": return p.defaultValue ?? p.options?.[0]?.value;
     case "multiselect": return Array.isArray(p.defaultValue) ? [...p.defaultValue] : (p.options?.[0] ? [p.options[0].value] : []);
     case "slider": return p.defaultValue ?? Math.round((Number(p.min) + Number(p.max)) / 2);
@@ -268,10 +305,10 @@ function fillPlaceholders(text, resolvedValues) {
 export function compileComponent(component, values = {}) {
   const resolvedValues = {};
   const parts = [];
-  for (const p of paramsFromConfig(component.config)) {
+  for (const p of paramsFromConfig(component.config, component.systemPrompt)) {
     const raw = values[p.id] ?? defaultParamValue(p);
     const phrase = resolveParam(p, raw, component.paramPromptFragments || {});
-    resolvedValues[p.id] = phrase;
+    if (phrase !== "") resolvedValues[p.id] = phrase;
     parts.push({ paramId: p.id, label: p.label, type: p.type, rawValue: raw, resolvedPhrase: phrase });
   }
   const fill = (text) => fillPlaceholders(text, resolvedValues);
@@ -299,7 +336,8 @@ export function resolveParam(param, value, paramFragments = {}) {
         : `the attached ${(param.label || param.id).toLowerCase()} (image {{index}})`;
     }
     case "color": {
-      const hex = String(value || param.defaultHex || "#000000").toUpperCase();
+      const hex = String(value || param.defaultHex || "").trim().toUpperCase();
+      if (!hex) return "";
       const name = colorName(hex);
       const fragment = paramFragments[param.id] || "{{value}}";
       return fragment.replace("{{value}}", name ? `${name} (${hex})` : hex);
@@ -352,7 +390,7 @@ export function compilePrompt(template, values = {}, options = {}) {
 
   // Attached images are sent to the API in param order. Optional images
   // with no upload are skipped, so number only the ones that will be sent.
-  const params = paramsFromConfig(template.config);
+  const params = paramsFromConfig(template.config, template.systemPrompt);
   const imageParams = params.filter((p) => p.type === "image");
   const imageValue = (p) => values[p.id] ?? values[p.configPath] ?? null;
   const sentImages = imageParams.filter((p) => imageValue(p) || !p.optional);
@@ -365,14 +403,13 @@ export function compilePrompt(template, values = {}, options = {}) {
     const isImage = param.type === "image";
 
     // Missing required non-image param
-    if (!isImage && userValue == null && !param.optional) {
-      const fallback = param.defaultHex || param.defaultValue || "";
-      warnings.push(`"${param.label}" has no value. Using ${fallback ? `default (${fallback})` : "empty"}.`);
+    if (!isImage && (userValue == null || userValue === "") && !param.defaultHex && !param.defaultValue && !param.optional) {
+      warnings.push(`"${param.label}" has no value in the prompt JSON.`);
     }
 
     let resolved = resolveParam(param, userValue ?? param.defaultHex ?? param.defaultValue, fragments);
     if (isImage) resolved = resolved.replace(/\s*\(image \{\{index\}\}\)/, imageIndex[param.id] ? ` (image ${imageIndex[param.id]})` : "").replace("{{index}}", imageIndex[param.id] || "");
-    resolvedValues[param.id] = resolved;
+    if (resolved !== "") resolvedValues[param.id] = resolved;
 
     if (param.type !== "image") {
       parts.push({
@@ -527,7 +564,7 @@ function imageInstruction(im, recolours) {
   ].join(" ");
 }
 
-export { paramsFromConfig, hydrateTemplate, hydrateComponent };
+export { paramsFromConfig, hydrateTemplate, hydrateComponent, readConfigEntry, packConfigValue };
 
 function joinList(items) {
   const xs = items.filter(Boolean);
@@ -536,8 +573,8 @@ function joinList(items) {
 }
 
 // Builds a cache key payload string from the compiled prompt + model settings.
-export function cacheKeyPayload(compiled, { model, quality, imageHashes = [], variation = 0 }) {
-  return stableJson({ prompt: compiled.prompt, model, quality, images: imageHashes, variation });
+export function cacheKeyPayload(compiled, { model, quality, imageHashes = [], variation = 0, size = "1024x1024" }) {
+  return stableJson({ prompt: compiled.prompt, model, quality, size, images: imageHashes, variation });
 }
 
 export function stableJson(v) {

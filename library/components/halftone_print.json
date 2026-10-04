@@ -1,0 +1,15 @@
+{
+  "id": "halftone_print",
+  "name": "Halftone Print",
+  "scope": "element",
+  "category": "Texture",
+  "systemPrompt": "Apply a controlled halftone texture to the affected element at {{depth_level}} intensity. Convert tonal areas into a structured grid of halftone dots while preserving the element's original shape, details, colors, proportions, and visual information. Adjust dot density, scale, and tonal coverage according to the selected intensity without obscuring important features or altering the underlying composition. The halftone should feel like an intentional printed texture rather than a random noise pattern, with consistent dot distribution and natural integration into the affected element.",
+  "config": {
+    "depth_level": "depth_level"
+  },
+  "rules": [],
+  "affects": [],
+  "conflictsWith": [],
+  "version": 1,
+  "updatedAt": "2026-10-04T12:18:16.977Z"
+}

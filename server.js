@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { compilePrompt, cacheKeyPayload, validateTemplate, validateComponent, paramsFromConfig } from "./src/compiler.js";
 import { loadTemplates, getTemplate, saveTemplate, deleteTemplate, loadComponents, saveComponent, deleteComponent } from "./src/registry.js";
 import { createJob, updateJob, getJob, listJobs, deleteJobs } from "./src/jobs.js";
-import { generateImage, MODEL, QUALITY, MOCK } from "./src/imageClient.js";
+import { generateImage, MODEL, QUALITY, MOCK, OUTPUT_SIZE } from "./src/imageClient.js";
 import { getCached, saveCached, saveImageFile, sha256 } from "./src/cache.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -137,7 +137,7 @@ app.post("/api/compile", wrap(async (req, res) => {
   const imageHashes = Object.entries(values)
     .filter(([, v]) => typeof v === "string" && v.startsWith("data:image"))
     .map(([, v]) => sha256(v));
-  const key = sha256(cacheKeyPayload(compiled, { model: MOCK ? "mock" : MODEL, quality: QUALITY, imageHashes }));
+  const key = sha256(cacheKeyPayload(compiled, { model: MOCK ? "mock" : MODEL, quality: QUALITY, size: OUTPUT_SIZE, imageHashes }));
   const cached = Boolean(await getCached(key));
   res.json({ ...compiled, cacheKey: key, cached, engine: info() });
 }));
@@ -155,14 +155,14 @@ app.post("/api/generate", wrap(async (req, res) => {
   }
 
   // Collect image files in param order
-  const imageParams = paramsFromConfig(template.config).filter((p) => p.type === "image");
+  const imageParams = paramsFromConfig(template.config, template.systemPrompt).filter((p) => p.type === "image");
   const images = imageParams.map((p) => ({
     label: p.providerImageName || p.label || p.id,
     dataUrl: values[p.id] || values[p.configPath] || null
   })).filter((im) => im.dataUrl);
 
   const imageHashes = images.map((im) => sha256(im.dataUrl));
-  const cacheKey = sha256(cacheKeyPayload(compiled, { model: MOCK ? "mock" : MODEL, quality: QUALITY, imageHashes }));
+  const cacheKey = sha256(cacheKeyPayload(compiled, { model: MOCK ? "mock" : MODEL, quality: QUALITY, size: OUTPUT_SIZE, imageHashes }));
 
   const job = await createJob({
     templateId,
@@ -172,8 +172,8 @@ app.post("/api/generate", wrap(async (req, res) => {
     components: compiled.components.map((c) => ({ id: c.id, name: c.name, scope: c.scope, parts: c.parts })),
     warnings: compiled.warnings,
     cacheKey,
-    size: template.apiSize,
-    exportSize: template.export
+    size: OUTPUT_SIZE,
+    exportSize: [1024, 1024]
   });
 
   res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
@@ -199,8 +199,8 @@ app.post("/api/generate", wrap(async (req, res) => {
     const finished = await completeGenerationJob(job, compiled, {
       templateId,
       cacheKey,
-      size: template.apiSize,
-      exportSize: template.export,
+      size: OUTPUT_SIZE,
+      exportSize: [1024, 1024],
       images
     }, async (partial) => send("partial", partial));
     if (finished.status === "failed") send("error", { error: finished.error || "Generation failed." });

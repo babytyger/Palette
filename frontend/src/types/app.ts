@@ -37,7 +37,7 @@ export type Template = {
   description?: string;
   category?: string;
   systemPrompt?: string;
-  config?: Record<string, string>;
+  config?: Record<string, string | { value: string; type: "text" | "image" }>;
   params?: Param[];
   referenceImage?: string;
   archived?: boolean;
@@ -57,7 +57,7 @@ export type ComponentDef = {
   description?: string;
   group?: string;
   systemPrompt?: string;
-  config?: Record<string, string>;
+  config?: Record<string, string | { value: string; type: "text" | "image" }>;
   prompt?: string;
   params?: Param[];
   rules?: any[];

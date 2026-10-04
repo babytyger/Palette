@@ -27,11 +27,12 @@
       "instruction": "Do not allow blocks to distort, replace or obscure the primary subject or important visual information."
     }
   ],
-  "version": 2,
-  "updatedAt": "2026-10-04T08:27:31.659Z",
-  "systemPrompt": "Add rectangular blocks using {{shape_density}} density and {{shape_color}}. Arrange the blocks with varied sizes, spacing and positioning while keeping them visually clean and distinct. The blocks should remain behind and never obscure the primary subject or important information.",
+  "version": 3,
+  "systemPrompt": "Add rectangular blocks using {{shape_density}} density and {{shape_color}}. The blocks should function as large background graphic elements that occupy substantial areas of the frame, with some blocks extending to or touching the canvas edges. Vary their sizes, proportions, spacing, and positions to create a clean but dynamic layered composition. Arrange all rectangular blocks strictly behind the main subject so they never obscure, cover, or interfere with the subject or its important details. Keep the blocks visually distinct with clear separation where appropriate, while allowing controlled overlaps between blocks to create depth. The composition should feel intentional, balanced, and editorial rather than like a regular grid or repetitive pattern. Use {{shape_color}} consistently for all blocks.",
   "config": {
     "shape_density": "shape_density",
     "shape_color": "shape_color"
-  }
+  },
+  "conflictsWith": [],
+  "updatedAt": "2026-10-04T12:48:43.151Z"
 }

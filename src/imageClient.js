@@ -4,6 +4,7 @@ import OpenAI, { toFile } from "openai";
 
 export const MODEL = process.env.IMAGE_MODEL || "gpt-image-1";
 export const QUALITY = process.env.IMAGE_QUALITY || "medium";
+export const OUTPUT_SIZE = "1024x1024";
 // "high" keeps uploaded faces and details closest to the original. Set to "off" to disable.
 export const INPUT_FIDELITY = (process.env.IMAGE_INPUT_FIDELITY || "high") === "off" ? null : (process.env.IMAGE_INPUT_FIDELITY || "high");
 export const MOCK = process.env.MOCK_MODE === "true" || !process.env.OPENAI_API_KEY;
@@ -40,7 +41,8 @@ const readImageStream = async (stream, onPartial) => {
 
 // images: array of { dataUrl, label } for all image params, in param order.
 // onPartial receives each streamed preview before the final image.
-export async function generateImage({ prompt, size, images = [], onPartial }) {
+export async function generateImage({ prompt, images = [], onPartial }) {
+  const size = OUTPUT_SIZE;
   if (MOCK) return mockImage(prompt, size);
   const inputs = await Promise.all(images.map((im, i) => dataUrlToFile(im.dataUrl, im.label || `image_${i + 1}`)));
   const streamed = { model: MODEL, prompt, size, quality: QUALITY, stream: true, partial_images: PARTIALS };
@@ -51,7 +53,7 @@ export async function generateImage({ prompt, size, images = [], onPartial }) {
     } catch (err) {
       if (!/partial_images|\bstream\b/i.test(String(err?.message))) throw err;
       console.warn(`Model ${MODEL} rejected streamed previews. Generating the final image.`);
-      const res = await editImage({ model: MODEL, image: inputs, prompt, size, quality: QUALITY });
+      const res = await editImage({ model: MODEL, image: inputs, prompt, size: OUTPUT_SIZE, quality: QUALITY });
       return { b64: res.data[0].b64_json, mime: "image/png" };
     }
   }
@@ -60,7 +62,7 @@ export async function generateImage({ prompt, size, images = [], onPartial }) {
   } catch (err) {
     if (!/partial_images|\bstream\b/i.test(String(err?.message))) throw err;
     console.warn(`Model ${MODEL} rejected streamed previews. Generating the final image.`);
-    const res = await client.images.generate({ model: MODEL, prompt, size, quality: QUALITY, n: 1 });
+    const res = await client.images.generate({ model: MODEL, prompt, size: OUTPUT_SIZE, quality: QUALITY, n: 1 });
     return { b64: res.data[0].b64_json, mime: "image/png" };
   }
 }

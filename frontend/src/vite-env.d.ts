@@ -21,7 +21,9 @@ declare module "@lib/compiler" {
     parts: any[];
   };
   export const compilePrompt: (template: any, values?: Record<string, any>, options?: any) => any;
-  export const paramsFromConfig: (config: Record<string, string> | undefined) => any[];
+  export const paramsFromConfig: (config: Record<string, unknown> | undefined, promptText?: string) => any[];
+  export const readConfigEntry: (token: unknown) => { value: string; type: string };
+  export const packConfigValue: (key: string, token: unknown, type: string) => string | { value: string; type: "text" | "image" };
   export const hydrateTemplate: (tpl: any) => any;
   export const hydrateComponent: (comp: any) => any;
 }

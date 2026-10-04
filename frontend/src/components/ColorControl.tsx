@@ -35,7 +35,18 @@ const hexFrom = (color: { toString: (format: "hex") => string }) => color.toStri
  */
 const ColorControl = ({ param: p, value: cur, onChange, compact }: Props) => {
   const swatches = swatchesForParam(p);
-  const hex = normalizeHex(String(cur || p.defaultHex || "#285AC5")) || "#285AC5";
+  const hex = normalizeHex(String(cur || p.defaultHex || ""));
+  if (!hex) {
+    return (
+      <input
+        className="color-hex-input"
+        aria-label={`${p.label} hex`}
+        placeholder="No colour in the prompt"
+        value={String(cur || "")}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    );
+  }
   const color = parseColor(hex);
 
   return (

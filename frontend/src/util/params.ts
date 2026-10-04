@@ -1,4 +1,4 @@
-import { checkComponents, COMPONENT_CATEGORIES, defaultParamValue } from "@lib/compiler";
+import { checkComponents, COMPONENT_CATEGORIES, defaultParamValue, packConfigValue, readConfigEntry } from "@lib/compiler";
 import type { ComponentDef, Param, Registry, StackItem, Template } from "@/types/app";
 import { SLOT_LABEL } from "@/util/format";
 
@@ -116,7 +116,7 @@ const applyParamFunction = (p: Param, fn: string) => {
   const type = PARAM_FUNCTIONS.some((f) => f.id === fn) ? fn : inferParamFunction(p);
   const next: Param = { id: p.id, label: p.label || labelFromParamId(p.id), type };
   const seeded = p.defaultValue ?? strayParamValue(p);
-  if (type === "color") next.defaultHex = p.defaultHex || seeded || "#0047AB";
+  if (type === "color") next.defaultHex = p.defaultHex || seeded || "";
   else if (type === "select" || type === "multiselect") {
     next.options = Array.isArray(p.options) && p.options.length
       ? p.options
@@ -383,12 +383,6 @@ const pickStatus = (
  * @param value - Candidate config
  * @returns Whether every entry is a config pair
  */
-const isConfigMap = (value: unknown): value is Record<string, string> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const entries = Object.entries(value);
-  return entries.length > 0 && entries.every(([key, token]) => /^[a-z][a-z0-9_]*$/.test(key) && typeof token === "string");
-};
-
 /**
  * Balanced `{...}` slices in source order.
  *
@@ -425,14 +419,59 @@ const jsonObjectsIn = (text: string) => {
   return found;
 };
 
+type ParamLevel = "text" | "image";
+
 type PromptDraft = {
   title: string;
   name: string;
   id: string;
   systemPrompt: string;
   config: Record<string, string>;
+  paramTypes: Record<string, ParamLevel>;
+  components: string[];
   configError: string;
   parsed: boolean;
+};
+
+type ConfigMap = {
+  config: Record<string, string>;
+  paramTypes: Record<string, ParamLevel>;
+};
+
+/**
+ * Reads a config object without requiring a fixed key or value shape.
+ *
+ * @param value - Candidate config
+ * @returns String map plus any chosen text or image levels, or null when the value is not an object
+ */
+const configRecord = (value: unknown): ConfigMap | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const config: Record<string, string> = {};
+  const paramTypes: Record<string, ParamLevel> = {};
+  for (const [key, token] of Object.entries(value)) {
+    const read = readConfigEntry(token);
+    config[key] = read.value;
+    if (read.type === "text" || read.type === "image") paramTypes[key] = read.type;
+  }
+  return { config, paramTypes };
+};
+
+/**
+ * Names listed in a components array.
+ *
+ * @param value - JSON components field
+ * @returns Display names
+ */
+const componentLabels = (value: unknown) => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object") {
+      const record = item as Record<string, unknown>;
+      return String(record.name || record.id || "");
+    }
+    return "";
+  }).filter(Boolean);
 };
 
 /**
@@ -447,15 +486,18 @@ const readPromptDraft = (raw: string): PromptDraft | null => {
   try {
     const def = JSON.parse(text) as Record<string, unknown>;
     if (def && typeof def === "object" && !Array.isArray(def)) {
-      const config = isConfigMap(def.config) ? def.config : isConfigMap(def) ? def : {};
+      const ownConfig = configRecord(def.config);
+      const picked = ownConfig || (!def.systemPrompt && !def.name ? configRecord(def) : null);
       const name = typeof def.name === "string" ? def.name : "";
       const id = typeof def.id === "string" ? def.id : "";
       return {
         title: [name, id].filter(Boolean).join(" · "),
         name,
         id,
-        systemPrompt: typeof def.systemPrompt === "string" ? def.systemPrompt : "",
-        config,
+        systemPrompt: typeof def.systemPrompt === "string" ? def.systemPrompt : (typeof def.prompt === "string" ? def.prompt : ""),
+        config: picked?.config || {},
+        paramTypes: picked?.paramTypes || {},
+        components: componentLabels(def.components),
         configError: "",
         parsed: true
       };
@@ -472,21 +514,25 @@ const readPromptDraft = (raw: string): PromptDraft | null => {
       continue;
     }
     const record = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
-    const config = record && isConfigMap(record.config) ? record.config : isConfigMap(parsed) ? parsed : null;
-    if (!config) continue;
+    if (!record) continue;
+    const nested = configRecord(record.config);
+    const picked = nested || configRecord(record);
+    if (!picked) continue;
     const cut = text.lastIndexOf(objects[i]);
     return {
       title: "",
-      name: "",
-      id: "",
+      name: typeof record.name === "string" ? record.name : "",
+      id: typeof record.id === "string" ? record.id : "",
       systemPrompt: text.slice(0, cut).replace(/\bCONFIG\s*$/i, "").trim(),
-      config,
+      config: picked.config,
+      paramTypes: picked.paramTypes,
+      components: componentLabels(record.components),
       configError: "",
       parsed: false
     };
   }
   const configError = /(?:^|\n)\s*CONFIG\s*(?:\n|$)/i.test(text) ? "The CONFIG block is not valid JSON." : "";
-  return { title: "", name: "", id: "", systemPrompt: text, config: {}, configError, parsed: false };
+  return { title: "", name: "", id: "", systemPrompt: text, config: {}, paramTypes: {}, components: [], configError, parsed: false };
 };
 
 /**
@@ -495,16 +541,233 @@ const readPromptDraft = (raw: string): PromptDraft | null => {
  * @param tpl - Template prompt and config
  * @returns Editor document
  */
-const formatPromptDocument = (tpl: { systemPrompt?: string; config?: Record<string, string> | null }) => {
+const formatPromptDocument = (tpl: { systemPrompt?: string; config?: Record<string, unknown> | null }) => {
   const prompt = String(tpl?.systemPrompt || "").replace(/\s+$/, "");
   const config = tpl?.config && typeof tpl.config === "object" && !Array.isArray(tpl.config) ? tpl.config : {};
-  const wrapped = Object.fromEntries(Object.entries(config).map(([key, token]) => {
-    const bare = String(token ?? "").trim().replace(/^\{\{/, "").replace(/\}\}$/, "").trim();
-    return [key, bare ? `{{${bare}}}` : ""];
+  const placeholders = new Set(promptPlaceholders(prompt));
+  const shown = Object.fromEntries(Object.entries(config).map(([key, token]) => {
+    const read = readConfigEntry(token);
+    const text = read.value.trim();
+    const bare = text.replace(/^\{\{/, "").replace(/\}\}$/, "").trim();
+    const display = placeholders.has(bare) ? `{{${bare}}}` : text;
+    return [key, read.type ? packConfigValue(key, display, read.type) : display];
   }));
-  const block = `CONFIG\n${JSON.stringify(wrapped, null, 2)}\n`;
+  const block = `CONFIG\n${JSON.stringify(shown, null, 2)}\n`;
   return prompt ? `${prompt}\n\n${block}` : block;
 };
+
+/**
+ * Sets one config entry to text or image and writes that choice back into the prompt.
+ *
+ * @param raw - Editor text
+ * @param key - Config key
+ * @param type - Chosen level
+ * @returns Updated editor text
+ */
+const applyConfigParamType = (raw: string, key: string, type: ParamLevel) => {
+  const text = String(raw || "");
+  const write = (token: unknown) => packConfigValue(key, token, type);
+  try {
+    const def = JSON.parse(text.trim()) as Record<string, unknown>;
+    if (def && typeof def === "object" && !Array.isArray(def)) {
+      const nested = def.config && typeof def.config === "object" && !Array.isArray(def.config)
+        ? def.config as Record<string, unknown>
+        : null;
+      if (nested && Object.prototype.hasOwnProperty.call(nested, key)) {
+        nested[key] = write(nested[key]);
+        return JSON.stringify(def, null, 2);
+      }
+      if (!nested && !def.systemPrompt && !def.name && Object.prototype.hasOwnProperty.call(def, key)) {
+        def[key] = write(def[key]);
+        return JSON.stringify(def, null, 2);
+      }
+    }
+  } catch {
+    // A prompt with a CONFIG block is not one JSON document.
+  }
+  const objects = jsonObjectsIn(text);
+  for (let i = objects.length - 1; i >= 0; i -= 1) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(objects[i]);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
+    const record = parsed as Record<string, unknown>;
+    const nested = record.config && typeof record.config === "object" && !Array.isArray(record.config)
+      ? record.config as Record<string, unknown>
+      : null;
+    const target = nested || record;
+    if (!Object.prototype.hasOwnProperty.call(target, key)) continue;
+    target[key] = write(target[key]);
+    const cut = text.lastIndexOf(objects[i]);
+    return `${text.slice(0, cut)}${JSON.stringify(record, null, 2)}${text.slice(cut + objects[i].length)}`;
+  }
+  return text;
+};
+
+/**
+ * Placeholder ids in the prompt that no config key or value covers.
+ *
+ * @param raw - Editor text
+ * @returns Missing placeholder ids, or none when the CONFIG block is invalid
+ */
+const missingConfigPlaceholders = (raw: string) => {
+  const draft = readPromptDraft(raw);
+  if (!draft || draft.configError) return [];
+  const covered = new Set<string>();
+  for (const [key, value] of Object.entries(draft.config)) {
+    covered.add(key);
+    const bare = String(value).replace(/^\{\{/, "").replace(/\}\}$/, "").trim();
+    if (bare) covered.add(bare);
+  }
+  return promptPlaceholders(draft.systemPrompt).filter((id) => !covered.has(id));
+};
+
+/**
+ * True when a JSON object is a stored text or image value, not a config map.
+ *
+ * @param record - Parsed object
+ * @returns Whether the object is `{ value, type }`
+ */
+const isPackedConfigValue = (record: Record<string, unknown>) => {
+  const keys = Object.keys(record);
+  return keys.length > 0 && keys.every((key) => key === "value" || key === "token" || key === "placeholder" || key === "type");
+};
+
+const SNAKE_KEY = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * Turns a config key into lowercase snake_case.
+ *
+ * @param key - Config key, such as subjectImage1
+ * @returns Key such as subject_image_1
+ */
+const snakeConfigKey = (key: string) => {
+  if (SNAKE_KEY.test(key)) return key;
+  const snake = String(key || "")
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")
+    .replace(/([A-Za-z])(\d)/g, "$1_$2")
+    .replace(/[^a-zA-Z0-9_]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+  return snake || "param";
+};
+
+/**
+ * Config keys that are not lowercase snake_case.
+ *
+ * @param raw - Editor text
+ * @returns Keys Fix will rename
+ */
+const configKeysToFix = (raw: string) => {
+  const draft = readPromptDraft(raw);
+  if (!draft || draft.configError) return [];
+  return Object.keys(draft.config).filter((key) => snakeConfigKey(key) !== key);
+};
+
+/**
+ * Renames config keys to snake_case without changing their values.
+ *
+ * @param target - Config object
+ * @returns Whether any key changed
+ */
+const renameConfigKeys = (target: Record<string, unknown>) => {
+  const taken = new Set<string>();
+  const next: Record<string, unknown> = {};
+  let changed = false;
+  for (const [key, value] of Object.entries(target)) {
+    let name = snakeConfigKey(key);
+    if (name !== key) changed = true;
+    const base = name;
+    let n = 2;
+    while (taken.has(name)) {
+      name = `${base}_${n}`;
+      n += 1;
+      changed = true;
+    }
+    taken.add(name);
+    next[name] = value;
+  }
+  if (!changed) return false;
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target, next);
+  return true;
+};
+
+/**
+ * Adds missing placeholders and renames config keys to snake_case.
+ *
+ * @param raw - Editor text
+ * @returns Updated editor text
+ */
+const fixPromptConfig = (raw: string) => {
+  const missing = missingConfigPlaceholders(raw);
+  const text = String(raw || "");
+  const repair = (target: Record<string, unknown>) => {
+    renameConfigKeys(target);
+    for (const id of missing) {
+      if (!Object.prototype.hasOwnProperty.call(target, id)) target[id] = `{{${id}}}`;
+    }
+  };
+  if (!missing.length && !configKeysToFix(raw).length) return raw;
+  try {
+    const def = JSON.parse(text.trim()) as Record<string, unknown>;
+    if (def && typeof def === "object" && !Array.isArray(def)) {
+      const nested = def.config && typeof def.config === "object" && !Array.isArray(def.config)
+        ? def.config as Record<string, unknown>
+        : null;
+      if (nested) {
+        repair(nested);
+        return JSON.stringify(def, null, 2);
+      }
+      if (def.systemPrompt || def.prompt || def.name) {
+        def.config = {};
+        repair(def.config as Record<string, unknown>);
+        return JSON.stringify(def, null, 2);
+      }
+      repair(def);
+      return JSON.stringify(def, null, 2);
+    }
+  } catch {
+    // A prompt with a CONFIG block is not one JSON document.
+  }
+  const objects = jsonObjectsIn(text);
+  for (let i = objects.length - 1; i >= 0; i -= 1) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(objects[i]);
+    } catch {
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
+    const record = parsed as Record<string, unknown>;
+    if (isPackedConfigValue(record)) continue;
+    const nested = record.config && typeof record.config === "object" && !Array.isArray(record.config)
+      ? record.config as Record<string, unknown>
+      : null;
+    repair(nested || record);
+    const cut = text.lastIndexOf(objects[i]);
+    return `${text.slice(0, cut)}${JSON.stringify(record, null, 2)}${text.slice(cut + objects[i].length)}`;
+  }
+  const block = `CONFIG\n${JSON.stringify(Object.fromEntries(missing.map((id) => [id, `{{${id}}}`])), null, 2)}\n`;
+  const trimmed = text.replace(/\s+$/, "");
+  return trimmed ? `${trimmed}\n\n${block}` : block;
+};
+
+/**
+ * Writes config values, keeping a text or image level when one was chosen.
+ *
+ * @param config - Bare config values
+ * @param paramTypes - Chosen levels keyed by config key
+ * @returns Config ready to save
+ */
+const configWithLevels = (config: Record<string, string>, paramTypes: Record<string, ParamLevel>) => Object.fromEntries(
+  Object.entries(config).map(([key, value]) => [key, paramTypes[key] ? packConfigValue(key, value, paramTypes[key]) : value])
+);
 
 /**
  * Stores config values as placeholder names, without {{ }}.
@@ -557,6 +820,11 @@ export {
   promptPlaceholders,
   readPromptDraft,
   formatPromptDocument,
+  applyConfigParamType,
+  fixPromptConfig,
+  configKeysToFix,
+  snakeConfigKey,
+  configWithLevels,
   bareConfigTokens,
   templateIdFromName,
   ensureConfigForPrompt,

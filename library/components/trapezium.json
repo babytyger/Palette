@@ -1,0 +1,15 @@
+{
+  "id": "trapezium",
+  "name": "Trapezium",
+  "scope": "element",
+  "category": "Shapes",
+  "systemPrompt": "Add one giant trapezium as a bold geometric background element behind the main original subject image. The trapezium should occupy a substantial portion of the frame, extending close to or beyond the canvas edges where appropriate. Keep it strictly behind the subject so the subject remains fully visible and recognizable. Use {{shape_color}} as the trapezium's solid fill color. Position and scale the trapezium to create a strong layered editorial composition, with the subject visually sitting in front of it. Keep the shape clean, flat, and sharply defined, with no internal texture, gradient, glow, or unnecessary details. Do not allow the trapezium to obscure, alter, crop, or interfere with the subject's identity, silhouette, proportions, or important details.",
+  "config": {
+    "shape_color": "shape_color"
+  },
+  "rules": [],
+  "affects": [],
+  "conflictsWith": [],
+  "version": 1,
+  "updatedAt": "2026-10-04T13:07:14.969Z"
+}
